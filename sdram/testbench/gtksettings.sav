@@ -1,0 +1,36 @@
+@28
+top_tb.clk
+top_tb.rst
+@200
+-
+-DUT
+@22
+#{top_tb.addr[31:0]} top_tb.addr[31] top_tb.addr[30] top_tb.addr[29] top_tb.addr[28] top_tb.addr[27] top_tb.addr[26] top_tb.addr[25] top_tb.addr[24] top_tb.addr[23] top_tb.addr[22] top_tb.addr[21] top_tb.addr[20] top_tb.addr[19] top_tb.addr[18] top_tb.addr[17] top_tb.addr[16] top_tb.addr[15] top_tb.addr[14] top_tb.addr[13] top_tb.addr[12] top_tb.addr[11] top_tb.addr[10] top_tb.addr[9] top_tb.addr[8] top_tb.addr[7] top_tb.addr[6] top_tb.addr[5] top_tb.addr[4] top_tb.addr[3] top_tb.addr[2] top_tb.addr[1] top_tb.addr[0]
+#{top_tb.data_w[31:0]} top_tb.data_w[31] top_tb.data_w[30] top_tb.data_w[29] top_tb.data_w[28] top_tb.data_w[27] top_tb.data_w[26] top_tb.data_w[25] top_tb.data_w[24] top_tb.data_w[23] top_tb.data_w[22] top_tb.data_w[21] top_tb.data_w[20] top_tb.data_w[19] top_tb.data_w[18] top_tb.data_w[17] top_tb.data_w[16] top_tb.data_w[15] top_tb.data_w[14] top_tb.data_w[13] top_tb.data_w[12] top_tb.data_w[11] top_tb.data_w[10] top_tb.data_w[9] top_tb.data_w[8] top_tb.data_w[7] top_tb.data_w[6] top_tb.data_w[5] top_tb.data_w[4] top_tb.data_w[3] top_tb.data_w[2] top_tb.data_w[1] top_tb.data_w[0]
+#{top_tb.data_r[31:0]} top_tb.data_r[31] top_tb.data_r[30] top_tb.data_r[29] top_tb.data_r[28] top_tb.data_r[27] top_tb.data_r[26] top_tb.data_r[25] top_tb.data_r[24] top_tb.data_r[23] top_tb.data_r[22] top_tb.data_r[21] top_tb.data_r[20] top_tb.data_r[19] top_tb.data_r[18] top_tb.data_r[17] top_tb.data_r[16] top_tb.data_r[15] top_tb.data_r[14] top_tb.data_r[13] top_tb.data_r[12] top_tb.data_r[11] top_tb.data_r[10] top_tb.data_r[9] top_tb.data_r[8] top_tb.data_r[7] top_tb.data_r[6] top_tb.data_r[5] top_tb.data_r[4] top_tb.data_r[3] top_tb.data_r[2] top_tb.data_r[1] top_tb.data_r[0]
+#{top_tb.sel[3:0]} top_tb.sel[3] top_tb.sel[2] top_tb.sel[1] top_tb.sel[0]
+@28
+top_tb.we
+top_tb.stb
+top_tb.cyc
+top_tb.stall
+top_tb.ack
+@200
+-
+@28
+top_tb.sdram_clk
+top_tb.sdram_cke
+@22
+#{top_tb.sdram_addr[12:0]} top_tb.sdram_addr[12] top_tb.sdram_addr[11] top_tb.sdram_addr[10] top_tb.sdram_addr[9] top_tb.sdram_addr[8] top_tb.sdram_addr[7] top_tb.sdram_addr[6] top_tb.sdram_addr[5] top_tb.sdram_addr[4] top_tb.sdram_addr[3] top_tb.sdram_addr[2] top_tb.sdram_addr[1] top_tb.sdram_addr[0]
+@28
+#{top_tb.sdram_ba[1:0]} top_tb.sdram_ba[1] top_tb.sdram_ba[0]
+top_tb.sdram_cas
+top_tb.sdram_cs
+@22
+#{top_tb.sdram_data[15:0]} top_tb.sdram_data[15] top_tb.sdram_data[14] top_tb.sdram_data[13] top_tb.sdram_data[12] top_tb.sdram_data[11] top_tb.sdram_data[10] top_tb.sdram_data[9] top_tb.sdram_data[8] top_tb.sdram_data[7] top_tb.sdram_data[6] top_tb.sdram_data[5] top_tb.sdram_data[4] top_tb.sdram_data[3] top_tb.sdram_data[2] top_tb.sdram_data[1] top_tb.sdram_data[0]
+@28
+#{top_tb.sdram_dqm[1:0]} top_tb.sdram_dqm[1] top_tb.sdram_dqm[0]
+top_tb.sdram_ras
+top_tb.sdram_we
+[pattern_trace] 1
+[pattern_trace] 0
