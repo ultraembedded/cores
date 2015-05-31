@@ -1,0 +1,32 @@
+@28
+top_tb.clk
+top_tb.rst
+@200
+-
+-WB
+@22
+#{top_tb.u_dut.mem_addr_o[31:0]} top_tb.u_dut.mem_addr_o[31] top_tb.u_dut.mem_addr_o[30] top_tb.u_dut.mem_addr_o[29] top_tb.u_dut.mem_addr_o[28] top_tb.u_dut.mem_addr_o[27] top_tb.u_dut.mem_addr_o[26] top_tb.u_dut.mem_addr_o[25] top_tb.u_dut.mem_addr_o[24] top_tb.u_dut.mem_addr_o[23] top_tb.u_dut.mem_addr_o[22] top_tb.u_dut.mem_addr_o[21] top_tb.u_dut.mem_addr_o[20] top_tb.u_dut.mem_addr_o[19] top_tb.u_dut.mem_addr_o[18] top_tb.u_dut.mem_addr_o[17] top_tb.u_dut.mem_addr_o[16] top_tb.u_dut.mem_addr_o[15] top_tb.u_dut.mem_addr_o[14] top_tb.u_dut.mem_addr_o[13] top_tb.u_dut.mem_addr_o[12] top_tb.u_dut.mem_addr_o[11] top_tb.u_dut.mem_addr_o[10] top_tb.u_dut.mem_addr_o[9] top_tb.u_dut.mem_addr_o[8] top_tb.u_dut.mem_addr_o[7] top_tb.u_dut.mem_addr_o[6] top_tb.u_dut.mem_addr_o[5] top_tb.u_dut.mem_addr_o[4] top_tb.u_dut.mem_addr_o[3] top_tb.u_dut.mem_addr_o[2] top_tb.u_dut.mem_addr_o[1] top_tb.u_dut.mem_addr_o[0]
+#{top_tb.u_dut.mem_data_o[31:0]} top_tb.u_dut.mem_data_o[31] top_tb.u_dut.mem_data_o[30] top_tb.u_dut.mem_data_o[29] top_tb.u_dut.mem_data_o[28] top_tb.u_dut.mem_data_o[27] top_tb.u_dut.mem_data_o[26] top_tb.u_dut.mem_data_o[25] top_tb.u_dut.mem_data_o[24] top_tb.u_dut.mem_data_o[23] top_tb.u_dut.mem_data_o[22] top_tb.u_dut.mem_data_o[21] top_tb.u_dut.mem_data_o[20] top_tb.u_dut.mem_data_o[19] top_tb.u_dut.mem_data_o[18] top_tb.u_dut.mem_data_o[17] top_tb.u_dut.mem_data_o[16] top_tb.u_dut.mem_data_o[15] top_tb.u_dut.mem_data_o[14] top_tb.u_dut.mem_data_o[13] top_tb.u_dut.mem_data_o[12] top_tb.u_dut.mem_data_o[11] top_tb.u_dut.mem_data_o[10] top_tb.u_dut.mem_data_o[9] top_tb.u_dut.mem_data_o[8] top_tb.u_dut.mem_data_o[7] top_tb.u_dut.mem_data_o[6] top_tb.u_dut.mem_data_o[5] top_tb.u_dut.mem_data_o[4] top_tb.u_dut.mem_data_o[3] top_tb.u_dut.mem_data_o[2] top_tb.u_dut.mem_data_o[1] top_tb.u_dut.mem_data_o[0]
+#{top_tb.u_dut.mem_data_i[31:0]} top_tb.u_dut.mem_data_i[31] top_tb.u_dut.mem_data_i[30] top_tb.u_dut.mem_data_i[29] top_tb.u_dut.mem_data_i[28] top_tb.u_dut.mem_data_i[27] top_tb.u_dut.mem_data_i[26] top_tb.u_dut.mem_data_i[25] top_tb.u_dut.mem_data_i[24] top_tb.u_dut.mem_data_i[23] top_tb.u_dut.mem_data_i[22] top_tb.u_dut.mem_data_i[21] top_tb.u_dut.mem_data_i[20] top_tb.u_dut.mem_data_i[19] top_tb.u_dut.mem_data_i[18] top_tb.u_dut.mem_data_i[17] top_tb.u_dut.mem_data_i[16] top_tb.u_dut.mem_data_i[15] top_tb.u_dut.mem_data_i[14] top_tb.u_dut.mem_data_i[13] top_tb.u_dut.mem_data_i[12] top_tb.u_dut.mem_data_i[11] top_tb.u_dut.mem_data_i[10] top_tb.u_dut.mem_data_i[9] top_tb.u_dut.mem_data_i[8] top_tb.u_dut.mem_data_i[7] top_tb.u_dut.mem_data_i[6] top_tb.u_dut.mem_data_i[5] top_tb.u_dut.mem_data_i[4] top_tb.u_dut.mem_data_i[3] top_tb.u_dut.mem_data_i[2] top_tb.u_dut.mem_data_i[1] top_tb.u_dut.mem_data_i[0]
+#{top_tb.u_dut.mem_sel_o[3:0]} top_tb.u_dut.mem_sel_o[3] top_tb.u_dut.mem_sel_o[2] top_tb.u_dut.mem_sel_o[1] top_tb.u_dut.mem_sel_o[0]
+@28
+top_tb.u_dut.mem_we_o
+top_tb.u_dut.mem_cyc_o
+top_tb.u_dut.mem_stb_o
+top_tb.u_dut.mem_stall_i
+top_tb.u_dut.mem_ack_i
+@200
+-
+-FTDI
+@28
+top_tb.u_dut.ftdi_rxf_i
+@22
+#{top_tb.u_dut.ftdi_d_io[7:0]} top_tb.u_dut.ftdi_d_io[7] top_tb.u_dut.ftdi_d_io[6] top_tb.u_dut.ftdi_d_io[5] top_tb.u_dut.ftdi_d_io[4] top_tb.u_dut.ftdi_d_io[3] top_tb.u_dut.ftdi_d_io[2] top_tb.u_dut.ftdi_d_io[1] top_tb.u_dut.ftdi_d_io[0]
+@28
+top_tb.u_dut.ftdi_rd_o
+top_tb.u_dut.u_sync.ftdi_txe_i
+top_tb.u_dut.u_sync.ftdi_wr_o
+@200
+-
+[pattern_trace] 1
+[pattern_trace] 0
