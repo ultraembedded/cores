@@ -417,7 +417,7 @@ else
 //-----------------------------------------------------------------
 // Refresh counter
 //-----------------------------------------------------------------
-localparam REFRESH_CNT_W = 24;
+localparam REFRESH_CNT_W = 17;
 
 reg [REFRESH_CNT_W-1:0] refresh_timer_q;
 always @ (posedge rst_i or posedge clk_i)

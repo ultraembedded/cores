@@ -12,7 +12,7 @@ This IP supports supports 4 open active rows (one per bank).
 
 Verified under simulation against a couple of SDRAM models and on the miniSpartan6+ board which features the AS4C16M16S.
 
-The supplied testbench works with the free version Modelsim.
+The supplied testbench works with the free version of Modelsim.
 
 ##### Configuration
 * SDRAM_MHZ - Clock speed (verified with 50MHz & 100MHz)
@@ -25,6 +25,6 @@ The supplied testbench works with the free version Modelsim.
 
 With the default configuration...
 
-* the design contains 191 flops.
+* the design contains 184 flops.
 * synthesizes to > 160MHz on Xilinx Spartan 6 LX9 (speed -3)
 * can hit up-to 92% of maximum bus rate for sequential accesses taking into account row open/close and refreshes.

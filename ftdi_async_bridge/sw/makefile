@@ -9,6 +9,7 @@ all:
 	make -f makefile.mk TARGET=verify
 	make -f makefile.mk TARGET=gpio_read
 	make -f makefile.mk TARGET=gpio_write
+	make -f makefile.mk TARGET=sdram_test
 
 clean:
 	make -f makefile.mk TARGET=load clean
@@ -18,3 +19,5 @@ clean:
 	make -f makefile.mk TARGET=verify clean
 	make -f makefile.mk TARGET=gpio_read clean
 	make -f makefile.mk TARGET=gpio_write clean
+	make -f makefile.mk TARGET=sdram_test clean
+
