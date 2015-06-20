@@ -1,31 +1,20 @@
 ###############################################################################
-## Makefile
-###############################################################################
-
-# Target
-TARGET     ?= test
-
-# Options
-CFLAGS      = -g
-LDFLAGS     = 
-LIBS        = -lftdi
-
-# Source Files
-OBJ = ftdi_hw.o $(TARGET).o
-
-###############################################################################
 # Rules
 ###############################################################################
-all: $(TARGET)
-    
+all:
+	make -f makefile.mk TARGET=load
+	make -f makefile.mk TARGET=peek
+	make -f makefile.mk TARGET=poke
+	make -f makefile.mk TARGET=dump
+	make -f makefile.mk TARGET=verify
+	make -f makefile.mk TARGET=gpio_read
+	make -f makefile.mk TARGET=gpio_write
+
 clean:
-	-rm *.o $(TARGET)
-
-%.o : %.c
-	gcc -c $(CFLAGS) $< -o $@
-
-%.o : %.cpp
-	g++ -c $(CFLAGS) $< -o $@
-
-$(TARGET): $(OBJ)
-	g++ $(LDFLAGS) $(OBJ) $(LIBS) -o $@
+	make -f makefile.mk TARGET=load clean
+	make -f makefile.mk TARGET=peek clean
+	make -f makefile.mk TARGET=poke clean
+	make -f makefile.mk TARGET=dump clean
+	make -f makefile.mk TARGET=verify clean
+	make -f makefile.mk TARGET=gpio_read clean
+	make -f makefile.mk TARGET=gpio_write clean

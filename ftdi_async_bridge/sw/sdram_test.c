@@ -3,9 +3,13 @@
 
 #include "ftdi_hw.h"
 
+//-----------------------------------------------------------------
+// Defines:
+//-----------------------------------------------------------------
+#define DEFAULT_FTDI_IFACE  1
 #define BLOCK_SIZE  2048
 
-#define MEM_SIZE    ((16 * 1024) / 4)
+#define MEM_SIZE    ((32 * 1024) / 4)
 
 static uint32_t mem[MEM_SIZE];
 
@@ -14,15 +18,17 @@ static uint32_t mem[MEM_SIZE];
 //-----------------------------------------------------------------
 int main(void)
 {
-    uint32_t buffer[16384];
+    uint32_t buffer[BLOCK_SIZE/4];
     uint32_t req;
     uint32_t resp;
     uint32_t addr;
     uint8_t gpio;
+    struct timeval t1, t2;
+    double elapsedTime;    
     int res;
     int i;
 
-    if (ftdi_hw_init(1) != 0)
+    if (ftdi_hw_init(DEFAULT_FTDI_IFACE) != 0)
     {
         fprintf(stderr, "ERROR: Could not open FTDI interface, try SUDOing\n");
         return 0;
@@ -57,18 +63,15 @@ int main(void)
         printf("ERR2: %x != %x\n", req, resp);
     }
 
-    struct timeval t1, t2;
-    double elapsedTime;
-
-    // start timer
-    gettimeofday(&t1, NULL);
-
     for (i=0;i<MEM_SIZE;i++)
         mem[i] = 0;
 
     printf("Erasing memory\n");
     ftdi_hw_mem_write(0, (uint8_t*)mem, MEM_SIZE);
     printf("Erasing memory - done\n");
+
+    // Start timer
+    gettimeofday(&t1, NULL);
 
     int sent = 0;
     while (1)
@@ -109,6 +112,10 @@ int main(void)
             addr = rand() & ((MEM_SIZE * 4) - 1);
             addr &= ~3;
 
+            // Stop block from overflowing RAM
+            if (addr > ((MEM_SIZE * 4) - BLOCK_SIZE))
+                addr = ((MEM_SIZE * 4) - BLOCK_SIZE);
+
             for (i=0;i<BLOCK_SIZE / 4;i++)
             {
                 buffer[i] = rand();
@@ -120,10 +127,9 @@ int main(void)
             sent += BLOCK_SIZE;
         }
 
-        // stop timer
+        // Stop timer
         gettimeofday(&t2, NULL);        
 
-        // compute and print the elapsed time in millisec
         elapsedTime = (t2.tv_sec - t1.tv_sec) * 1000.0;      // sec to ms
         elapsedTime += (t2.tv_usec - t1.tv_usec) / 1000.0;   // us to ms   
 
