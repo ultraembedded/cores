@@ -260,7 +260,7 @@ begin
         // Preamble bits?
         if (bit_count_q < 6'd8)
         begin
-            bit_r = preamble_q[bit_count_q];
+            bit_r = preamble_q[bit_count_q[2:0]];
         end
         // Normal timeslots
         else if (bit_count_q < 6'd62)
