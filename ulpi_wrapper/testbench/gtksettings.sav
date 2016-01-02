@@ -1,0 +1,57 @@
+@28
+top_tb.clk
+top_tb.rst
+@200
+-
+@28
+top_tb.switch_pending
+@22
+top_tb.master_sel[31:0]
+@200
+-
+-
+@800200
+-LINK
+@28
+top_tb.utmi_link_txvalid
+top_tb.utmi_link_txready
+@22
+top_tb.utmi_link_data_in[7:0]
+@28
+top_tb.utmi_link_rxerror
+top_tb.utmi_link_rxvalid
+top_tb.utmi_link_rxactive
+@22
+#{top_tb.utmi_link_data_out[7:0]} top_tb.utmi_link_data_out[7] top_tb.utmi_link_data_out[6] top_tb.utmi_link_data_out[5] top_tb.utmi_link_data_out[4] top_tb.utmi_link_data_out[3] top_tb.utmi_link_data_out[2] top_tb.utmi_link_data_out[1] top_tb.utmi_link_data_out[0]
+@1000200
+-LINK
+@200
+-
+@29
+top_tb.ulpi_dir
+@22
+#{top_tb.ulpi_data_in[7:0]} top_tb.ulpi_data_in[7] top_tb.ulpi_data_in[6] top_tb.ulpi_data_in[5] top_tb.ulpi_data_in[4] top_tb.ulpi_data_in[3] top_tb.ulpi_data_in[2] top_tb.ulpi_data_in[1] top_tb.ulpi_data_in[0]
+#{top_tb.ulpi_data_out[7:0]} top_tb.ulpi_data_out[7] top_tb.ulpi_data_out[6] top_tb.ulpi_data_out[5] top_tb.ulpi_data_out[4] top_tb.ulpi_data_out[3] top_tb.ulpi_data_out[2] top_tb.ulpi_data_out[1] top_tb.ulpi_data_out[0]
+@28
+top_tb.ulpi_nxt
+top_tb.ulpi_stp
+@200
+-
+@800200
+-PHY
+@28
+top_tb.utmi_phy_rxactive
+top_tb.utmi_phy_rxvalid
+@22
+top_tb.utmi_phy_data_in[7:0]
+@200
+-
+@28
+top_tb.utmi_phy_txvalid
+top_tb.utmi_phy_txready
+@22
+#{top_tb.utmi_phy_data_out[7:0]} top_tb.utmi_phy_data_out[7] top_tb.utmi_phy_data_out[6] top_tb.utmi_phy_data_out[5] top_tb.utmi_phy_data_out[4] top_tb.utmi_phy_data_out[3] top_tb.utmi_phy_data_out[2] top_tb.utmi_phy_data_out[1] top_tb.utmi_phy_data_out[0]
+@1000200
+-PHY
+[pattern_trace] 1
+[pattern_trace] 0
