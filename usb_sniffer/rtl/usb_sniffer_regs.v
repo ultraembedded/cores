@@ -20,12 +20,12 @@ module usb_sniffer_regs
     output         usb_buffer_cfg_ignore_sof_o,
     output         usb_buffer_cfg_cont_o,
     output         usb_buffer_cfg_enabled_o,
+    output [31:0]  usb_buffer_base_addr_o,
+    output [31:0]  usb_buffer_end_addr_o,
     input          usb_buffer_sts_overflow_i,
     input          usb_buffer_sts_mem_stall_i,
     input          usb_buffer_sts_wrapped_i,
     input          usb_buffer_sts_trig_i,
-    output [31:0]  usb_buffer_base_addr_o,
-    output [31:0]  usb_buffer_end_addr_o,
     input  [31:0]  usb_buffer_current_addr_i,
     output [31:0]  usb_buffer_read_addr_o,
 
@@ -193,23 +193,6 @@ assign usb_buffer_cfg_enabled_o = usb_buffer_cfg_enabled_q;
 
 
 //-----------------------------------------------------------------
-// Register usb_buffer_sts
-//-----------------------------------------------------------------
-reg usb_buffer_sts_wr_q;
-
-always @ (posedge clk_i or posedge rst_i)
-if (rst_i)
-    usb_buffer_sts_wr_q <= 1'b0;
-else if (write_en_w && (addr_i == `USB_BUFFER_STS))
-    usb_buffer_sts_wr_q <= 1'b1;
-else
-    usb_buffer_sts_wr_q <= 1'b0;
-
-
-
-
-
-//-----------------------------------------------------------------
 // Register usb_buffer_base
 //-----------------------------------------------------------------
 reg usb_buffer_base_wr_q;
@@ -257,6 +240,23 @@ else if (write_en_w && (addr_i == `USB_BUFFER_END))
     usb_buffer_end_addr_q <= data_i[`USB_BUFFER_END_ADDR_R];
 
 assign usb_buffer_end_addr_o = usb_buffer_end_addr_q;
+
+
+//-----------------------------------------------------------------
+// Register usb_buffer_sts
+//-----------------------------------------------------------------
+reg usb_buffer_sts_wr_q;
+
+always @ (posedge clk_i or posedge rst_i)
+if (rst_i)
+    usb_buffer_sts_wr_q <= 1'b0;
+else if (write_en_w && (addr_i == `USB_BUFFER_STS))
+    usb_buffer_sts_wr_q <= 1'b1;
+else
+    usb_buffer_sts_wr_q <= 1'b0;
+
+
+
 
 
 //-----------------------------------------------------------------
@@ -323,13 +323,6 @@ begin
         data_r[`USB_BUFFER_CFG_CONT_R] = usb_buffer_cfg_cont_q;
         data_r[`USB_BUFFER_CFG_ENABLED_R] = usb_buffer_cfg_enabled_q;
     end
-    `USB_BUFFER_STS :
-    begin
-        data_r[`USB_BUFFER_STS_OVERFLOW_R] = usb_buffer_sts_overflow_i;
-        data_r[`USB_BUFFER_STS_MEM_STALL_R] = usb_buffer_sts_mem_stall_i;
-        data_r[`USB_BUFFER_STS_WRAPPED_R] = usb_buffer_sts_wrapped_i;
-        data_r[`USB_BUFFER_STS_TRIG_R] = usb_buffer_sts_trig_i;
-    end
     `USB_BUFFER_BASE :
     begin
         data_r[`USB_BUFFER_BASE_ADDR_R] = usb_buffer_base_addr_q;
@@ -337,6 +330,13 @@ begin
     `USB_BUFFER_END :
     begin
         data_r[`USB_BUFFER_END_ADDR_R] = usb_buffer_end_addr_q;
+    end
+    `USB_BUFFER_STS :
+    begin
+        data_r[`USB_BUFFER_STS_OVERFLOW_R] = usb_buffer_sts_overflow_i;
+        data_r[`USB_BUFFER_STS_MEM_STALL_R] = usb_buffer_sts_mem_stall_i;
+        data_r[`USB_BUFFER_STS_WRAPPED_R] = usb_buffer_sts_wrapped_i;
+        data_r[`USB_BUFFER_STS_TRIG_R] = usb_buffer_sts_trig_i;
     end
     `USB_BUFFER_CURRENT :
     begin

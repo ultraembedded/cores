@@ -44,11 +44,8 @@ module usb_sniffer
 `define LOG_SOF_FRAME_W         11
 `define LOG_SOF_FRAME_L         0
 `define LOG_SOF_FRAME_H         (`LOG_SOF_FRAME_L + `LOG_SOF_FRAME_W - 1)
-`define LOG_SOF_CYCLE_W         16
-`define LOG_SOF_CYCLE_L         (`LOG_SOF_FRAME_H + 1)
-`define LOG_SOF_CYCLE_H         (`LOG_SOF_CYCLE_L + `LOG_SOF_CYCLE_W - 1)
 `define LOG_RST_STATE_W         1
-`define LOG_RST_STATE_L         (`LOG_SOF_CYCLE_H + 1)
+`define LOG_RST_STATE_L         (`LOG_SOF_FRAME_H + 1)
 `define LOG_RST_STATE_H         (`LOG_RST_STATE_L + `LOG_RST_STATE_W - 1)
 
 // TYPE = LOG_CTRL_TYPE_TOKEN | LOG_CTRL_TYPE_HSHAKE | LOG_CTRL_TYPE_DATA
@@ -66,7 +63,7 @@ module usb_sniffer
 `define LOG_DATA_LEN_L          (`LOG_TOKEN_PID_H + 1)
 `define LOG_DATA_LEN_H          (`LOG_DATA_LEN_L + `LOG_DATA_LEN_W - 1)
 
-// TYPE = LOG_CTRL_TYPE_TOKEN | LOG_CTRL_TYPE_HSHAKE | LOG_CTRL_TYPE_DATA
+// TYPE = LOG_CTRL_TYPE_TOKEN | LOG_CTRL_TYPE_HSHAKE | LOG_CTRL_TYPE_DATA | LOG_CTRL_TYPE_SOF
 `define LOG_CTRL_CYCLE_W        8
 `define LOG_CTRL_CYCLE_L        20
 `define LOG_CTRL_CYCLE_H        (`LOG_CTRL_CYCLE_L + `LOG_CTRL_CYCLE_W - 1)
@@ -541,20 +538,6 @@ assign current_dev_w = token_data_q[6:0];
 assign current_ep_w  = token_data_q[10:7];
 
 //-----------------------------------------------------------------
-// Cycle Counter
-//-----------------------------------------------------------------
-reg [15:0] cycle_q;
-
-always @ (posedge rst_i or posedge clk_i)
-if (rst_i)
-    cycle_q <= 16'b0;
-// Reset cycle counter every SOF
-else if (state_q == STATE_RX_SOF_COMPLETE)
-    cycle_q <= 16'b0;
-else if (cycle_q != 16'hFFFF)
-    cycle_q <= cycle_q + 16'd1;
-
-//-----------------------------------------------------------------
 // Data Counter
 //-----------------------------------------------------------------
 reg [15:0] data_count_q;
@@ -576,6 +559,8 @@ reg        buffer_wr_q;
 reg [31:0] buffer_r;
 reg        buffer_wr_r;
 
+reg [15:0] cycle_q;
+
 always @ *
 begin
     buffer_r    = 32'b0;
@@ -584,9 +569,9 @@ begin
     // Logging SOFs?
     if (state_q == STATE_RX_SOF_COMPLETE && !cfg_ignore_sof_w)
     begin
-        buffer_r[`LOG_SOF_FRAME_H:`LOG_SOF_FRAME_L] = frame_number_q;
-        buffer_r[`LOG_SOF_CYCLE_H:`LOG_SOF_CYCLE_L] = cycle_q;
-        buffer_r[`LOG_CTRL_TYPE_H:`LOG_CTRL_TYPE_L] = `LOG_CTRL_TYPE_SOF;
+        buffer_r[`LOG_SOF_FRAME_H:`LOG_SOF_FRAME_L]   = frame_number_q;
+        buffer_r[`LOG_CTRL_CYCLE_H:`LOG_CTRL_CYCLE_L] = cycle_q[15:8];
+        buffer_r[`LOG_CTRL_TYPE_H:`LOG_CTRL_TYPE_L]   = `LOG_CTRL_TYPE_SOF;
         buffer_wr_r = 1'b1;
     end
     // Token
@@ -610,7 +595,7 @@ begin
     else if (state_q == STATE_UPDATE_RST)
     begin
         buffer_r[`LOG_SOF_FRAME_H:`LOG_SOF_FRAME_L] = frame_number_q;
-        buffer_r[`LOG_SOF_CYCLE_H:`LOG_SOF_CYCLE_L] = cycle_q;
+        buffer_r[`LOG_CTRL_CYCLE_H:`LOG_CTRL_CYCLE_L] = cycle_q[15:8];
         buffer_r[`LOG_RST_STATE_H:`LOG_RST_STATE_L] = usb_rst_q;
         buffer_r[`LOG_CTRL_TYPE_H:`LOG_CTRL_TYPE_L] = `LOG_CTRL_TYPE_RST;
         buffer_wr_r = 1'b1;
@@ -658,6 +643,18 @@ if (rst_i)
     buffer_wr_q <= 1'b0;
 else if (!buffer_wr_q || !mem_stall_i)
     buffer_wr_q <= buffer_wr_r;
+
+//-----------------------------------------------------------------
+// Cycle Counter: Delta ticks since last log entry
+//-----------------------------------------------------------------
+always @ (posedge rst_i or posedge clk_i)
+if (rst_i)
+    cycle_q <= 16'b0;
+// Reset cycle counter on header write
+else if (buffer_wr_r && (state_q != STATE_RX_DATA))
+    cycle_q <= 16'b0;
+else if (cycle_q != 16'hFFFF)
+    cycle_q <= cycle_q + 16'd1;
 
 //-----------------------------------------------------------------
 // Enable Reset

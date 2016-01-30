@@ -13,14 +13,15 @@ Configuration of the IP is performed using a Wishbone slave interface.
 * Dense logging format.
 * Supports continuous streaming, one shot and detects buffer overruns.
 
+
 ##### Register Map
 
 | Offset | Name | Description   |
 | ------ | ---- | ------------- |
 | 0x00 | USB_BUFFER_CFG | [RW] Configuration Register |
-| 0x04 | USB_BUFFER_STS | [R] Status Register |
-| 0x08 | USB_BUFFER_BASE | [RW] Buffer Base Address |
-| 0x0c | USB_BUFFER_END | [RW] Buffer End Address |
+| 0x04 | USB_BUFFER_BASE | [RW] Buffer Base Address |
+| 0x08 | USB_BUFFER_END | [RW] Buffer End Address |
+| 0x0c | USB_BUFFER_STS | [R] Status Register |
 | 0x10 | USB_BUFFER_CURRENT | [R] Buffer Current address |
 | 0x14 | USB_BUFFER_READ | [RW] Buffer Read Address |
 
@@ -39,15 +40,6 @@ Configuration of the IP is performed using a Wishbone slave interface.
 | 1 | CONT | Continuous capture - overwrite on wrap (0 = Stop on full, 1 = cont) |
 | 0 | ENABLED | Capture enabled |
 
-##### Register: USB_BUFFER_STS
-
-| Bits | Name | Description    |
-| ---- | ---- | -------------- |
-| 3 | OVERFLOW | Occurs when write pointer (BUFFER_CURRENT) hits read pointer (BUFFER_READ) |
-| 2 | MEM_STALL | Overrun due to memory stall (data lost) |
-| 1 | WRAPPED | Capture wrapped |
-| 0 | TRIG | Capture triggered |
-
 ##### Register: USB_BUFFER_BASE
 
 | Bits | Name | Description    |
@@ -59,6 +51,15 @@ Configuration of the IP is performed using a Wishbone slave interface.
 | Bits | Name | Description    |
 | ---- | ---- | -------------- |
 | 31:0 | ADDR | Address of buffer end |
+
+##### Register: USB_BUFFER_STS
+
+| Bits | Name | Description    |
+| ---- | ---- | -------------- |
+| 3 | OVERFLOW | Occurs when write pointer (BUFFER_CURRENT) hits read pointer (BUFFER_READ) |
+| 2 | MEM_STALL | Overrun due to memory stall (data lost) |
+| 1 | WRAPPED | Capture wrapped |
+| 0 | TRIG | Capture triggered |
 
 ##### Register: USB_BUFFER_CURRENT
 

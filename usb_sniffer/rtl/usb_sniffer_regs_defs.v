@@ -67,7 +67,23 @@
     `define USB_BUFFER_CFG_ENABLED_W          1
     `define USB_BUFFER_CFG_ENABLED_R          0:0
 
-`define USB_BUFFER_STS    8'h4
+`define USB_BUFFER_BASE    8'h4
+
+	`define USB_BUFFER_BASE_ADDR_DEFAULT    0
+    `define USB_BUFFER_BASE_ADDR_B          0
+    `define USB_BUFFER_BASE_ADDR_T          31
+    `define USB_BUFFER_BASE_ADDR_W          32
+    `define USB_BUFFER_BASE_ADDR_R          31:0
+
+`define USB_BUFFER_END    8'h8
+
+	`define USB_BUFFER_END_ADDR_DEFAULT    0
+    `define USB_BUFFER_END_ADDR_B          0
+    `define USB_BUFFER_END_ADDR_T          31
+    `define USB_BUFFER_END_ADDR_W          32
+    `define USB_BUFFER_END_ADDR_R          31:0
+
+`define USB_BUFFER_STS    8'hc
 
     `define USB_BUFFER_STS_OVERFLOW      3
 	`define USB_BUFFER_STS_OVERFLOW_DEFAULT    0
@@ -96,22 +112,6 @@
     `define USB_BUFFER_STS_TRIG_T          0
     `define USB_BUFFER_STS_TRIG_W          1
     `define USB_BUFFER_STS_TRIG_R          0:0
-
-`define USB_BUFFER_BASE    8'h8
-
-	`define USB_BUFFER_BASE_ADDR_DEFAULT    0
-    `define USB_BUFFER_BASE_ADDR_B          0
-    `define USB_BUFFER_BASE_ADDR_T          31
-    `define USB_BUFFER_BASE_ADDR_W          32
-    `define USB_BUFFER_BASE_ADDR_R          31:0
-
-`define USB_BUFFER_END    8'hc
-
-	`define USB_BUFFER_END_ADDR_DEFAULT    0
-    `define USB_BUFFER_END_ADDR_B          0
-    `define USB_BUFFER_END_ADDR_T          31
-    `define USB_BUFFER_END_ADDR_W          32
-    `define USB_BUFFER_END_ADDR_R          31:0
 
 `define USB_BUFFER_CURRENT    8'h10
 
