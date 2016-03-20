@@ -18,10 +18,11 @@ All IOs are synchronous to the 60MHz ULPI clock input (sourced from the PHY), so
 
 Verified under simulation and also on a Xilinx FPGA connected to a SMSC/Microchip USB3300 in device mode using the [USB3300 USB HS](http://www.waveshare.com/usb3300-usb-hs-board.htm) evaluation board.
 
-The supplied trivial testbench works with the free version of Modelsim.
+The supplied testbench requires the SystemC libraries and Icarus Verilog, both of which are available for free.
 
 ##### Size / Performance
 
 With the current configuration...
 
-* the design contains 67 flops, uses 46 slices (59 LUTs on a Xilinx Spartan 6 with IOB packing for the outputs).
+* This design consumes around 88 LUTs on a Xilinx Spartan 6 with IOB packing for the outputs.
+* There are around 90 flops in the design.

@@ -48,6 +48,15 @@ module ulpi_wrapper
     input             ulpi_nxt_i,
     output            ulpi_stp_o,
 
+    // Register access (Wishbone pipelined access type)
+    // NOTE: Tie inputs to 0 if unused
+    input [7:0]       reg_addr_i,
+    input             reg_stb_i,
+    input             reg_we_i,
+    input [7:0]       reg_data_i,
+    output [7:0]      reg_data_o,
+    output            reg_ack_o,
+
     // UTMI Interface (SIE)
     input             utmi_txvalid_i,
     output            utmi_txready_o,
@@ -71,9 +80,18 @@ localparam STATE_W          = 2;
 localparam STATE_IDLE       = 2'd0;
 localparam STATE_CMD        = 2'd1;
 localparam STATE_DATA       = 2'd2;
-localparam STATE_WAIT       = 2'd3;
+localparam STATE_REG        = 2'd3;
 
 reg [STATE_W-1:0]   state_q;
+
+//-----------------------------------------------------------------
+// Local Params
+//-----------------------------------------------------------------
+localparam REG_FUNC_CTRL = 8'h84;
+localparam REG_OTG_CTRL  = 8'h8a;
+localparam REG_TRANSMIT  = 8'h40;
+localparam REG_WRITE     = 8'h80;
+localparam REG_READ      = 8'hC0;
 
 //-----------------------------------------------------------------
 // UTMI Mode Select
@@ -83,6 +101,8 @@ reg [1:0]   xcvrselect_q;
 reg         termselect_q;
 reg [1:0]   opmode_q;
 reg         phy_reset_q;
+reg         auto_wr_q;
+reg         reg_wr_q;
 
 always @ (posedge ulpi_clk60_i or posedge ulpi_rst_i)
 if (ulpi_rst_i)
@@ -99,7 +119,7 @@ begin
     termselect_q    <= utmi_termselect_i;
     opmode_q        <= utmi_opmode_i;
 
-    if (mode_update_q && (state_q == STATE_IDLE) && !ulpi_dir_i)
+    if (mode_update_q && (state_q == STATE_CMD) && (ulpi_data_o == REG_FUNC_CTRL))
     begin
         mode_update_q <= 1'b0;
         phy_reset_q   <= 1'b0;
@@ -129,7 +149,7 @@ begin
     dppulldown_q    <= utmi_dppulldown_i;
     dmpulldown_q    <= utmi_dmpulldown_i;
 
-    if (otg_update_q && !mode_update_q && (state_q == STATE_IDLE) && !ulpi_dir_i)
+    if (otg_update_q && (state_q == STATE_CMD) && (ulpi_data_o == REG_OTG_CTRL))
         otg_update_q <= 1'b0;
     else if (dppulldown_q != utmi_dppulldown_i ||
              dmpulldown_q != utmi_dmpulldown_i)
@@ -148,6 +168,64 @@ else
     ulpi_dir_q <= ulpi_dir_i;
 
 wire turnaround_w = ulpi_dir_q ^ ulpi_dir_i;
+
+reg ulpi_rxcmd_q;
+always @ (posedge ulpi_clk60_i or posedge ulpi_rst_i)
+if (ulpi_rst_i)
+    ulpi_rxcmd_q <= 1'b0;
+// Switch to input with NXT asserted in turnaround cycle
+else if (!ulpi_dir_q && ulpi_dir_i && ulpi_nxt_i)
+    ulpi_rxcmd_q <= 1'b1;
+// Switch to output (turnaround cycle)
+else if (ulpi_dir_q && !ulpi_dir_i)
+    ulpi_rxcmd_q <= 1'b0;
+
+//-----------------------------------------------------------------
+// Register Access
+//-----------------------------------------------------------------
+reg       reg_wr_pending_q;
+reg       reg_rd_pending_q;
+reg [7:0] reg_addr_q;
+reg [7:0] reg_data_q;
+reg       reg_ack_q;
+
+wire reg_ready_w = (reg_wr_pending_q && state_q == STATE_REG && ulpi_nxt_i && reg_wr_q) ||
+                   (reg_rd_pending_q && !turnaround_w && ulpi_dir_i && !ulpi_rxcmd_q);
+
+always @ (posedge ulpi_clk60_i or posedge ulpi_rst_i)
+if (ulpi_rst_i)
+begin
+    reg_wr_pending_q    <= 1'b0;
+    reg_rd_pending_q    <= 1'b0;
+    reg_addr_q          <= 8'b0;
+end
+else if (reg_stb_i)
+begin
+    reg_addr_q          <= reg_addr_i;
+    reg_wr_pending_q    <= reg_we_i;
+    reg_rd_pending_q    <= ~reg_we_i;
+end
+else if (reg_ready_w)
+begin
+    reg_wr_pending_q    <= 1'b0;
+    reg_rd_pending_q    <= 1'b0;
+end
+
+always @ (posedge ulpi_clk60_i or posedge ulpi_rst_i)
+if (ulpi_rst_i)
+    reg_data_q  <= 8'b0;
+else if (reg_stb_i && reg_we_i)
+    reg_data_q  <= reg_data_i;
+
+assign reg_data_o = utmi_data_o;
+
+always @ (posedge ulpi_clk60_i or posedge ulpi_rst_i)
+if (ulpi_rst_i)
+    reg_ack_q  <= 1'b0;
+else
+    reg_ack_q  <= reg_ready_w;
+
+assign reg_ack_o = reg_ack_q;
 
 //-----------------------------------------------------------------
 // Rx - Tx delay
@@ -232,14 +310,6 @@ reg                 utmi_rxactive_q;
 reg [1:0]           utmi_linestate_q;
 reg [7:0]           utmi_data_q;
 
-reg                 cmd_wr_q;
-
-localparam REG_FUNC_CTRL = 8'h84;
-localparam REG_OTG_CTRL  = 8'h8a;
-localparam REG_TRANSMIT  = 8'h40;
-localparam REG_WRITE     = 8'h80;
-localparam REG_READ      = 8'hC0;
-
 always @ (posedge ulpi_clk60_i or posedge ulpi_rst_i)
 begin
     if (ulpi_rst_i)
@@ -254,7 +324,8 @@ begin
         utmi_rxactive_q     <= 1'b0;
         utmi_linestate_q    <= 2'b0;
         utmi_data_q         <= 8'b0;
-        cmd_wr_q            <= 1'b0;
+        auto_wr_q           <= 1'b0;
+        reg_wr_q            <= 1'b0;
     end
     else
     begin
@@ -264,9 +335,9 @@ begin
         if (!turnaround_w)
         begin
             //-----------------------------------------------------------------
-            // Input
+            // Input: RX_DATA
             //-----------------------------------------------------------------
-            if (ulpi_dir_i)
+            if (ulpi_dir_i && ulpi_rxcmd_q)
             begin
                 utmi_rxvalid_q  <= ulpi_nxt_i;
                 utmi_data_q     <= ulpi_data_i;
@@ -301,6 +372,14 @@ begin
                     utmi_rxactive_q <= 1'b1;
             end
             //-----------------------------------------------------------------
+            // Input: REG_DATA
+            //-----------------------------------------------------------------
+            else if (ulpi_dir_i)
+            begin
+                utmi_rxvalid_q  <= 1'b0;
+                utmi_data_q     <= ulpi_data_i;
+            end
+            //-----------------------------------------------------------------
             // Output
             //-----------------------------------------------------------------
             else
@@ -312,7 +391,8 @@ begin
                     ulpi_data_q <= REG_FUNC_CTRL;
 
                     state_q     <= STATE_CMD;
-                    cmd_wr_q    <= 1'b1;
+                    auto_wr_q   <= 1'b1;
+                    reg_wr_q    <= 1'b0;
                 end
                 // IDLE: Pending OTG control update
                 else if ((state_q == STATE_IDLE) && otg_update_q)
@@ -321,31 +401,65 @@ begin
                     ulpi_data_q <= REG_OTG_CTRL;
 
                     state_q     <= STATE_CMD;
-                    cmd_wr_q    <= 1'b1;
+                    auto_wr_q   <= 1'b1;
+                    reg_wr_q    <= 1'b0;
                 end
+                // IDLE: Pending register access
+                else if ((state_q == STATE_IDLE) && (reg_wr_pending_q || reg_rd_pending_q))
+                begin
+                    data_q      <= reg_data_q;
+
+                    if (reg_wr_pending_q)
+                        ulpi_data_q <= REG_WRITE | {2'b0, reg_addr_q[5:0]};
+                    else
+                        ulpi_data_q <= REG_READ  | {2'b0, reg_addr_q[5:0]};
+
+                    state_q     <= STATE_CMD;
+                    auto_wr_q   <= 1'b0;
+                    reg_wr_q    <= reg_wr_pending_q;
+                end               
                 // IDLE: Pending transmit
                 else if ((state_q == STATE_IDLE) && utmi_tx_ready_w)
                 begin
                     ulpi_data_q <= REG_TRANSMIT | {4'b0, utmi_tx_data_w[3:0]};
                     state_q     <= STATE_DATA;
-                    cmd_wr_q    <= 1'b0;
+                    auto_wr_q   <= 1'b0;
+                    reg_wr_q    <= 1'b0;
                 end
                 // Command
                 else if ((state_q == STATE_CMD) && ulpi_nxt_i)
                 begin
-                    state_q     <= STATE_DATA;
-                    ulpi_data_q <= data_q;
+                    // Read Register
+                    if (!reg_wr_q && !auto_wr_q)
+                    begin
+                        state_q     <= STATE_IDLE;
+                        ulpi_data_q <= 8'b0;
+                    end
+                    // Write Register
+                    else
+                    begin
+                        state_q     <= STATE_REG;
+                        ulpi_data_q <= data_q;
+                    end
+                end
+                // Data (register write)
+                else if (state_q == STATE_REG && ulpi_nxt_i)
+                begin
+                    state_q       <= STATE_IDLE;
+                    ulpi_data_q   <= 8'b0;  // IDLE
+                    ulpi_stp_q    <= 1'b1;
+                    auto_wr_q     <= 1'b0;
+                    reg_wr_q      <= 1'b0;
                 end
                 // Data
                 else if (state_q == STATE_DATA && ulpi_nxt_i)
                 begin
                     // End of packet
-                    if (!utmi_tx_ready_w || cmd_wr_q)
+                    if (!utmi_tx_ready_w)
                     begin
                         state_q       <= STATE_IDLE;
                         ulpi_data_q   <= 8'b0;  // IDLE
                         ulpi_stp_q    <= 1'b1;
-                        cmd_wr_q      <= 1'b0;
                     end
                     else
                     begin
@@ -359,8 +473,8 @@ begin
 end
 
 // Accept from buffer
-assign utmi_tx_accept_w = ((state_q == STATE_IDLE) && !(mode_update_q || otg_update_q || turnaround_w) && !ulpi_dir_i) ||
-                          (state_q == STATE_DATA && ulpi_nxt_i && !ulpi_dir_i && !cmd_wr_q);
+assign utmi_tx_accept_w = ((state_q == STATE_IDLE) && !(mode_update_q || otg_update_q || turnaround_w || reg_wr_pending_q || reg_rd_pending_q) && !ulpi_dir_i) ||
+                          (state_q == STATE_DATA && ulpi_nxt_i && !ulpi_dir_i);
 
 //-----------------------------------------------------------------
 // Assignments

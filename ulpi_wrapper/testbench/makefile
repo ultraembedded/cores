@@ -1,35 +1,58 @@
-SEED            ?= 1
-CYCLES      	?= 200000
-TRACE   		?= 1
+#########################################################
+# Vars
+#########################################################
+SYSTEMC_HOME  ?= /opt/systemc-2.3.1
 
-all: compile run view                                                                                      
- 
-# Testbench
-SRC+= ./top_tb.sv
-SRC+= ./*.v
+TRACE         ?= 1
 
-SRC+= ../rtl/*.v
+DUT_NAME       = ulpi_wrapper
+RTL_DUT        = ../rtl/ulpi_wrapper.v
 
-SRC_FLAGS = +define+CYCLES=$(CYCLES) 
-SRC_FLAGS = +define+SEED=$(SEED) 
+#########################################################
+# Source
+#########################################################
+SRC          = $(filter-out $(DUT_NAME).cpp,$(wildcard *.cpp))
+SRC         += $(DUT_NAME).cpp
 
-ifeq ($(TRACE),1)
-    SRC_FLAGS += +define+TRACE=$(TRACE)
-endif
+SRC_V        = tb_top.v
+SRC_V       += $(RTL_DUT)
 
-INC_DIRS = -I.
+OBJ          = $(patsubst %.cpp,%.o,$(SRC)) 
 
-compile : 
-	vlib work
-	vlog $(SRC) $(SRC_FLAGS)
- 
-run : compile
-	vsim -c -do "run -all" top_tb
- 
-view : compile
-ifeq ($(TRACE),1)
-	gtkwave waveform.vcd gtksettings.sav  
-endif
- 
-clean :                                                                                                  
-	-rm -rf work waveform.vcd transcript
+VPI_OBJ      = dut
+
+#########################################################
+# CFLAGS
+#########################################################
+INC_PATH  = -I.
+INC_PATH += -I/usr/include/iverilog
+INC_PATH += -I$(SYSTEMC_HOME)/include
+
+VINC_PATH = -I. -I../rtl
+VFLAGS    = -DTRACE=$(TRACE)
+
+CFLAGS    = -c -fpic
+
+LIB_OPT   = $(SYSTEMC_HOME)/lib-linux64/libsystemc.a
+
+EXE       = output.out
+
+#########################################################
+# Rules
+#########################################################
+all: run
+
+%.o : %.cpp
+	gcc -c $(INC_PATH) $(CFLAGS) $< -o $@
+
+$(VPI_OBJ).vpi: $(OBJ) 
+	g++ -shared -o $(VPI_OBJ).vpi -Wl,--whole-archive $(LIB_OPT) $(OBJ) -Wl,--no-whole-archive
+
+$(EXE) : $(SRC_V)
+	iverilog -o $(EXE) $(SRC_V) $(VINC_PATH) $(VFLAGS)
+
+run: $(EXE) $(VPI_OBJ).vpi
+	vvp -M. -m$(VPI_OBJ) $(EXE) -vcd
+
+clean: 
+	rm -rf $(OBJ) dut.vpi *.vcd *.out
