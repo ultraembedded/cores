@@ -1,23 +1,38 @@
 #include "ulpi_wrapper_tb.h"
 
 //-----------------------------------------------------------------
-// DUT interface
-//-----------------------------------------------------------------
-ulpi_wrapper    *u_dut = NULL;
-ulpi_wrapper_tb *u_tb  = NULL;
-sc_clock        *u_clk = NULL;
-  
-//-----------------------------------------------------------------
 // sc_main_tb
 //-----------------------------------------------------------------
-void sc_main_tb(void) 
+static int attach_system_c(p_cb_data user_data)
 {
-    u_dut = &ulpi_wrapper::getInstance();
-    u_tb  = new ulpi_wrapper_tb("ulpi_wrapper_tb", u_dut);
+    ulpi_wrapper_tb * u_tb  = new ulpi_wrapper_tb("ulpi_wrapper_tb");
 
     // Initialize SystemC
     sc_start(0, SC_NS);
+
+    // Start clock
+    u_tb->m_vpi_clk.start();
 }
+//-----------------------------------------------------------------
+// _register
+//-----------------------------------------------------------------
+static void _register(void)
+{
+    s_cb_data          cb_data_s;
+    cb_data_s.user_data = NULL;
+    cb_data_s.reason    = cbStartOfSimulation;
+    cb_data_s.cb_rtn    = attach_system_c;
+    cb_data_s.time      = NULL;
+    cb_data_s.value     = NULL;
+    vpi_register_cb(&cb_data_s);
+}
+
+void (*vlog_startup_routines[])() = 
+{
+    _register,
+    0
+};
+
 //-----------------------------------------------------------------
 // testbench
 //-----------------------------------------------------------------
@@ -25,8 +40,10 @@ void ulpi_wrapper_tb::testbench(void)
 {
     sc_uint <8> last_wr = 0xFF;
 
-    while (ulpi_rst_i.read())
-        wait();
+    ulpi_rst_i.write(true);
+    wait(5);
+    ulpi_rst_i.write(false);
+    wait(1);
 
     m_reg.write(ULPI_REG_SCRATCH, last_wr);
 
@@ -59,7 +76,7 @@ void ulpi_wrapper_tb::testbench(void)
         }
 
         if (cycles++ == 1000)
-            m_dut->stopSimulation();
+            m_dut.stopSimulation();
     }
 }
 //-----------------------------------------------------------------

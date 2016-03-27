@@ -5,14 +5,12 @@ SYSTEMC_HOME  ?= /opt/systemc-2.3.1
 
 TRACE         ?= 1
 
-DUT_NAME       = ulpi_wrapper
 RTL_DUT        = ../rtl/ulpi_wrapper.v
 
 #########################################################
 # Source
 #########################################################
-SRC          = $(filter-out $(DUT_NAME).cpp,$(wildcard *.cpp))
-SRC         += $(DUT_NAME).cpp
+SRC          = $(wildcard *.cpp)
 
 SRC_V        = tb_top.v
 SRC_V       += $(RTL_DUT)

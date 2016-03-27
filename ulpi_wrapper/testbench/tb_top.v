@@ -66,31 +66,15 @@ ulpi_wrapper dut
 );
 
 //-----------------------------------------------------------------
-// Reset
+// Trace
 //-----------------------------------------------------------------
 initial 
 begin 
-    ulpi_clk60_i = 1; 
-    ulpi_rst_i = 1; 
-
-    // Hookup System C
-    $attach_system_c();
-
     if (`TRACE)
     begin
         $dumpfile("waveform.vcd");
         $dumpvars(0,tb_top);
     end
-
-#51 ulpi_rst_i = 0;
-end
-
-//-----------------------------------------------------------------
-// Clock
-//-----------------------------------------------------------------
-always
-begin
-    #5 ulpi_clk60_i =  !ulpi_clk60_i;
 end
 
 endmodule
