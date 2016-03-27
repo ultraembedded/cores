@@ -1,5 +1,7 @@
 ### ULPI Link Wrapper
 
+Github:   [http://github.com/ultraembedded/cores](https://github.com/ultraembedded/cores/tree/master/ulpi_wrapper)
+
 This IP core converts from the UTMI interface to the reduced pin-count ULPI interface.
 This enables interfacing from a standard USB SIE with UTMI interface to a USB 2.0 PHY.
 
