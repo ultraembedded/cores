@@ -3,10 +3,6 @@
 #########################################################
 SYSTEMC_HOME  ?= /usr/local/systemc-2.3.1
 
-GENERATE_PATH ?= ~/svn_vhdl/tools/sysc_wrap
-GENERATE_CMD  ?= python $(GENERATE_PATH)/generate.py
-GENERATE_ARGS ?=
-
 TRACE         ?= 1
 
 DUT_NAME       = spdif
@@ -46,13 +42,7 @@ EXE       = output.out
 #########################################################
 all: run
 
-tb_top.v: $(RTL_DUT)
-	$(GENERATE_CMD) $(RTL_DUT) $@ $(GENERATE_PATH)/tb_top.v.mk $(GENERATE_ARGS)
-
-$(DUT_NAME)_vpi.h: $(RTL_DUT)
-	$(GENERATE_CMD) $(RTL_DUT) $@ $(GENERATE_PATH)/dut_vpi.h.mk $(GENERATE_ARGS)
-
-%.o : %.cpp $(DUT_NAME)_vpi.h
+%.o : %.cpp
 	gcc -c $(INC_PATH) $(CFLAGS) $< -o $@
 
 $(VPI_OBJ).vpi: $(OBJ) 
@@ -64,8 +54,5 @@ $(EXE) : $(SRC_V)
 run: $(EXE) $(VPI_OBJ).vpi
 	vvp -M. -m$(VPI_OBJ) $(EXE) -vcd
 
-view:
-	gtkwave waveform.vcd gtksettings.sav  
-
 clean:
-	rm -rf $(OBJ) dut.vpi *.vcd *.out tb_top.v $(DUT_NAME)_vpi.h
+	rm -rf $(OBJ) dut.vpi *.vcd *.out
