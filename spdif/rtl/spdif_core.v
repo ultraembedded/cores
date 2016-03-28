@@ -167,10 +167,6 @@ begin
     // Left Channel (but not start of block)?
     else
         preamble_r = PREAMBLE_X; // X(M)
-
-    // If previous timeslot ended with a 1, invert preamble
-    if (spdif_o)
-        preamble_r = ~preamble_r;
 end
 
 always @ (posedge rst_i or posedge clk_i )
