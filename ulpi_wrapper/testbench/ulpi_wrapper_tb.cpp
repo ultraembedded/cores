@@ -45,8 +45,6 @@ void ulpi_wrapper_tb::testbench(void)
     ulpi_rst_i.write(false);
     wait(1);
 
-    m_reg.write(ULPI_REG_SCRATCH, last_wr);
-
     int cycles = 0;
     while (true)
     {
@@ -54,18 +52,6 @@ void ulpi_wrapper_tb::testbench(void)
         int wait_len = rand() % 10;
         if (wait_len)
             wait(wait_len);
-
-        // Random register write
-        if (rand() & 1)
-        {
-            last_wr = rand();
-            m_reg.write(ULPI_REG_SCRATCH, last_wr);
-        }
-        // Random register read
-        else
-        {
-            sc_assert(m_reg.read(ULPI_REG_SCRATCH) == last_wr);
-        }
 
         if (!(rand() % 32))
         {

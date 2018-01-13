@@ -13,12 +13,6 @@ public:
     sc_in <bool> ulpi_dir_i;
     sc_in <bool> ulpi_nxt_i;
     sc_out <bool> ulpi_stp_o;
-    sc_in <sc_uint<8> > reg_addr_i;
-    sc_in <bool> reg_stb_i;
-    sc_in <bool> reg_we_i;
-    sc_in <sc_uint<8> > reg_data_i;
-    sc_out <sc_uint<8> > reg_data_o;
-    sc_out <bool> reg_ack_o;
     sc_in <bool> utmi_txvalid_i;
     sc_out <bool> utmi_txready_o;
     sc_out <bool> utmi_rxvalid_o;
@@ -37,8 +31,6 @@ public:
     {
         sc_vpi_module_read_output_int(ulpi_data_o, "ulpi_data_o");
         sc_vpi_module_read_output_int(ulpi_stp_o, "ulpi_stp_o");
-        sc_vpi_module_read_output_int(reg_data_o, "reg_data_o");
-        sc_vpi_module_read_output_int(reg_ack_o, "reg_ack_o");
         sc_vpi_module_read_output_int(utmi_txready_o, "utmi_txready_o");
         sc_vpi_module_read_output_int(utmi_rxvalid_o, "utmi_rxvalid_o");
         sc_vpi_module_read_output_int(utmi_rxactive_o, "utmi_rxactive_o");
@@ -54,10 +46,6 @@ public:
         sc_vpi_module_write_input_int(ulpi_data_i, "ulpi_data_i");
         sc_vpi_module_write_input_int(ulpi_dir_i, "ulpi_dir_i");
         sc_vpi_module_write_input_int(ulpi_nxt_i, "ulpi_nxt_i");
-        sc_vpi_module_write_input_int(reg_addr_i, "reg_addr_i");
-        sc_vpi_module_write_input_int(reg_stb_i, "reg_stb_i");
-        sc_vpi_module_write_input_int(reg_we_i, "reg_we_i");
-        sc_vpi_module_write_input_int(reg_data_i, "reg_data_i");
         sc_vpi_module_write_input_int(utmi_txvalid_i, "utmi_txvalid_i");
         sc_vpi_module_write_input_int(utmi_data_i, "utmi_data_i");
         sc_vpi_module_write_input_int(utmi_xcvrselect_i, "utmi_xcvrselect_i");
@@ -76,12 +64,6 @@ public:
                                   , ulpi_dir_i ("ulpi_dir_i")
                                   , ulpi_nxt_i ("ulpi_nxt_i")
                                   , ulpi_stp_o ("ulpi_stp_o")
-                                  , reg_addr_i ("reg_addr_i")
-                                  , reg_stb_i ("reg_stb_i")
-                                  , reg_we_i ("reg_we_i")
-                                  , reg_data_i ("reg_data_i")
-                                  , reg_data_o ("reg_data_o")
-                                  , reg_ack_o ("reg_ack_o")
                                   , utmi_txvalid_i ("utmi_txvalid_i")
                                   , utmi_txready_o ("utmi_txready_o")
                                   , utmi_rxvalid_o ("utmi_rxvalid_o")
@@ -103,12 +85,6 @@ public:
         register_signal("ulpi_dir_i");
         register_signal("ulpi_nxt_i");
         register_signal("ulpi_stp_o");
-        register_signal("reg_addr_i");
-        register_signal("reg_stb_i");
-        register_signal("reg_we_i");
-        register_signal("reg_data_i");
-        register_signal("reg_data_o");
-        register_signal("reg_ack_o");
         register_signal("utmi_txvalid_i");
         register_signal("utmi_txready_o");
         register_signal("utmi_rxvalid_o");
