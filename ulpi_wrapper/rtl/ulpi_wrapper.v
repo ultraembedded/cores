@@ -1,6 +1,6 @@
 //-----------------------------------------------------------------
 //                        ULPI (Link) Wrapper
-//                              V1.0
+//                              V1.1
 //                        Ultra-Embedded.com
 //                        Copyright 2015-2018
 //
@@ -92,6 +92,13 @@ reg [1:0]   xcvrselect_q;
 reg         termselect_q;
 reg [1:0]   opmode_q;
 reg         phy_reset_q;
+reg         mode_write_q;
+
+// Detect register write completion
+wire mode_complete_w = (state_q == STATE_REG &&
+                        mode_write_q         && 
+                        ulpi_nxt_i           && 
+                        !ulpi_dir_i);           // Not interrupted by a Rx
 
 always @ (posedge ulpi_clk60_i or posedge ulpi_rst_i)
 if (ulpi_rst_i)
@@ -108,7 +115,7 @@ begin
     termselect_q    <= utmi_termselect_i;
     opmode_q        <= utmi_op_mode_i;
 
-    if (mode_update_q && (state_q == STATE_CMD) && (ulpi_data_in_o == REG_FUNC_CTRL))
+    if (mode_update_q && mode_complete_w)
     begin
         mode_update_q <= 1'b0;
         phy_reset_q   <= 1'b0;
@@ -125,6 +132,13 @@ end
 reg otg_update_q;
 reg dppulldown_q;
 reg dmpulldown_q;
+reg otg_write_q;
+
+// Detect register write completion
+wire otg_complete_w  = (state_q == STATE_REG &&
+                        otg_write_q         && 
+                        ulpi_nxt_i           && 
+                        !ulpi_dir_i);           // Not interrupted by a Rx
 
 always @ (posedge ulpi_clk60_i or posedge ulpi_rst_i)
 if (ulpi_rst_i)
@@ -138,7 +152,7 @@ begin
     dppulldown_q    <= utmi_dppulldown_i;
     dmpulldown_q    <= utmi_dmpulldown_i;
 
-    if (otg_update_q && (state_q == STATE_CMD) && (ulpi_data_in_o == REG_OTG_CTRL))
+    if (otg_update_q && otg_complete_w)
         otg_update_q <= 1'b0;
     else if (dppulldown_q != utmi_dppulldown_i ||
              dmpulldown_q != utmi_dmpulldown_i)
@@ -254,6 +268,9 @@ begin
     utmi_rxactive_q     <= 1'b0;
     utmi_linestate_q    <= 2'b0;
     utmi_data_q         <= 8'b0;
+
+    mode_write_q        <= 1'b0;
+    otg_write_q         <= 1'b0;
 end
 else
 begin
@@ -264,11 +281,25 @@ begin
     if (turnaround_w && ulpi_dir_i && ulpi_nxt_i)
     begin
         utmi_rxactive_q <= 1'b1;
+
+        // Register write - abort
+        if (state_q == STATE_REG)
+        begin
+            state_q       <= STATE_IDLE;
+            ulpi_data_q   <= 8'b0;  // IDLE
+        end
     end
     // Turnaround: Input -> Output - reset RX_ACTIVE
     else if (turnaround_w && !ulpi_dir_i)
     begin
         utmi_rxactive_q <= 1'b0;
+
+        // Register write - abort
+        if (state_q == STATE_REG)
+        begin
+            state_q       <= STATE_IDLE;
+            ulpi_data_q   <= 8'b0;  // IDLE
+        end
     end
     // Non-turnaround cycle
     else if (!turnaround_w)
@@ -317,18 +348,24 @@ begin
             // IDLE: Pending mode update
             if ((state_q == STATE_IDLE) && mode_update_q)
             begin
-                data_q      <= {1'b0, 1'b1, phy_reset_q, opmode_q, termselect_q, xcvrselect_q};
-                ulpi_data_q <= REG_FUNC_CTRL;
+                data_q        <= {1'b0, 1'b1, phy_reset_q, opmode_q, termselect_q, xcvrselect_q};
+                ulpi_data_q   <= REG_FUNC_CTRL;
 
-                state_q     <= STATE_CMD;
+                otg_write_q   <= 1'b0;
+                mode_write_q  <= 1'b1;
+
+                state_q       <= STATE_CMD;
             end
             // IDLE: Pending OTG control update
             else if ((state_q == STATE_IDLE) && otg_update_q)
             begin
-                data_q      <= {5'b0, dmpulldown_q, dppulldown_q, 1'b0};
-                ulpi_data_q <= REG_OTG_CTRL;
+                data_q        <= {5'b0, dmpulldown_q, dppulldown_q, 1'b0};
+                ulpi_data_q   <= REG_OTG_CTRL;
 
-                state_q     <= STATE_CMD;
+                otg_write_q   <= 1'b1;
+                mode_write_q  <= 1'b0;
+
+                state_q       <= STATE_CMD;
             end
             // IDLE: Pending transmit
             else if ((state_q == STATE_IDLE) && utmi_tx_ready_w)
@@ -349,6 +386,9 @@ begin
                 state_q       <= STATE_IDLE;
                 ulpi_data_q   <= 8'b0;  // IDLE
                 ulpi_stp_q    <= 1'b1;
+
+                otg_write_q   <= 1'b0;
+                mode_write_q  <= 1'b0;
             end
             // Data
             else if (state_q == STATE_DATA && ulpi_nxt_i)
