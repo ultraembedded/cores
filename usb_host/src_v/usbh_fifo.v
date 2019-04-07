@@ -1,8 +1,8 @@
 //-----------------------------------------------------------------
-//                        USB Full Speed Host
-//                              V0.1
-//                        Ultra-Embedded.com
-//                          Copyright 2015
+//                     USB Full Speed Host
+//                           V0.5
+//                     Ultra-Embedded.com
+//                     Copyright 2015-2019
 //
 //                 Email: admin@ultra-embedded.com
 //
@@ -29,96 +29,98 @@
 //-----------------------------------------------------------------
 
 //-----------------------------------------------------------------
-// Module: USB FIFO - simple FIFO
+//                          Generated File
 //-----------------------------------------------------------------
+
 module usbh_fifo
-
-//-----------------------------------------------------------------
-// Params
-//-----------------------------------------------------------------
-#(
-    parameter           WIDTH   = 8,
-    parameter           DEPTH   = 4,
-    parameter           ADDR_W  = 2
-)
-
-//-----------------------------------------------------------------
-// Ports
-//-----------------------------------------------------------------
 (
-    input               clk_i,
-    input               rst_i,
+    // Inputs
+     input           clk_i
+    ,input           rst_i
+    ,input  [  7:0]  data_i
+    ,input           push_i
+    ,input           pop_i
+    ,input           flush_i
 
-    input [WIDTH-1:0]   data_i,
-    input               push_i,
-
-    output              full_o,
-    output              empty_o,
-
-    output [WIDTH-1:0]  data_o,
-    input               pop_i,
-
-    input               flush_i
+    // Outputs
+    ,output          full_o
+    ,output          empty_o
+    ,output [  7:0]  data_o
 );
 
+
+
+parameter WIDTH   = 8;
+parameter DEPTH   = 64;
+parameter ADDR_W  = 6;
+
 //-----------------------------------------------------------------
-// Defs / Params
+// Local Params
 //-----------------------------------------------------------------
-localparam COUNT_W      = ADDR_W + 1;
+localparam COUNT_W = ADDR_W + 1;
 
 //-----------------------------------------------------------------
 // Registers
 //-----------------------------------------------------------------
 reg [WIDTH-1:0]         ram [DEPTH-1:0];
-reg [ADDR_W-1:0]        rd_ptr_q;
-reg [ADDR_W-1:0]        wr_ptr_q;
-reg [COUNT_W-1:0]       count_q;
+reg [ADDR_W-1:0]        rd_ptr;
+reg [ADDR_W-1:0]        wr_ptr;
+reg [COUNT_W-1:0]       count;
 
 //-----------------------------------------------------------------
 // Sequential
 //-----------------------------------------------------------------
 always @ (posedge clk_i or posedge rst_i)
+if (rst_i)
 begin
-    if (rst_i)
-    begin
-        count_q   <= {(COUNT_W) {1'b0}};
-        rd_ptr_q  <= {(ADDR_W) {1'b0}};
-        wr_ptr_q  <= {(ADDR_W) {1'b0}};
-    end
-    else if (flush_i)
-    begin
-        count_q   <= {(COUNT_W) {1'b0}};
-        rd_ptr_q  <= {(ADDR_W) {1'b0}};
-        wr_ptr_q  <= {(ADDR_W) {1'b0}};
-    end
-    else
-    begin
-        // Push
-        if (push_i && !full_o)
-        begin
-            ram[wr_ptr_q] <= data_i;
-            wr_ptr_q      <= wr_ptr_q + 1;
-        end
+    count   <= {(COUNT_W) {1'b0}};
+    rd_ptr  <= {(ADDR_W) {1'b0}};
+    wr_ptr  <= {(ADDR_W) {1'b0}};
+end
+else
+begin
 
-        // Pop
-        if (pop_i && !empty_o)
-            rd_ptr_q    <= rd_ptr_q + 1;
+    if (flush_i)
+    begin
+        count   <= {(COUNT_W) {1'b0}};
+        rd_ptr  <= {(ADDR_W) {1'b0}};
+        wr_ptr  <= {(ADDR_W) {1'b0}};
+    end
 
-        // Count up
-        if ((push_i && !full_o) && !(pop_i && !empty_o))
-            count_q     <= count_q + 1;
-        // Count down
-        else if (!(push_i && !full_o) && (pop_i && !empty_o))
-            count_q     <= count_q - 1;
+    // Push
+    if (push_i & ~full_o)
+    begin
+        ram[wr_ptr] <= data_i;
+        wr_ptr      <= wr_ptr + 1;
+    end
+
+    // Pop
+    if (pop_i & ~empty_o)
+    begin
+        rd_ptr      <= rd_ptr + 1;
+    end
+
+    // Count up
+    if ((push_i & ~full_o) & ~(pop_i & ~empty_o))
+    begin
+        count <= count + 1;
+    end
+    // Count down
+    else if (~(push_i & ~full_o) & (pop_i & ~empty_o))
+    begin
+        count <= count - 1;
     end
 end
 
 //-------------------------------------------------------------------
-// Assignments
+// Combinatorial
 //-------------------------------------------------------------------
-assign full_o    = (count_q == DEPTH);
-assign empty_o   = (count_q == 0);
+/* verilator lint_off WIDTH */
+assign full_o    = (count == DEPTH);
+assign empty_o   = (count == 0);
+/* verilator lint_on WIDTH */
 
-assign data_o    = ram[rd_ptr_q];
+assign data_o    = ram[rd_ptr];
+
 
 endmodule

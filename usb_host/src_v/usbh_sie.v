@@ -1,8 +1,8 @@
 //-----------------------------------------------------------------
-//                        USB Full Speed Host
-//                              V0.1
-//                        Ultra-Embedded.com
-//                          Copyright 2015
+//                     USB Full Speed Host
+//                           V0.5
+//                     Ultra-Embedded.com
+//                     Copyright 2015-2019
 //
 //                 Email: admin@ultra-embedded.com
 //
@@ -29,61 +29,51 @@
 //-----------------------------------------------------------------
 
 //-----------------------------------------------------------------
-// Module: USB host serial interface engine
+//                          Generated File
 //-----------------------------------------------------------------
+
 module usbh_sie
 (
-    // Clocking (48MHz) & Reset
-    input               clk_i,
-    input               rst_i,    
+    // Inputs
+     input           clk_i
+    ,input           rst_i
+    ,input           start_i
+    ,input           in_transfer_i
+    ,input           sof_transfer_i
+    ,input           resp_expected_i
+    ,input  [  7:0]  token_pid_i
+    ,input  [  6:0]  token_dev_i
+    ,input  [  3:0]  token_ep_i
+    ,input  [ 15:0]  data_len_i
+    ,input           data_idx_i
+    ,input  [  7:0]  tx_data_i
+    ,input           utmi_txready_i
+    ,input  [  7:0]  utmi_data_i
+    ,input           utmi_rxvalid_i
+    ,input           utmi_rxactive_i
 
-    // Control
-    input               start_i,
-    input               in_transfer_i,
-    input               sof_transfer_i,
-    input               resp_expected_i,    
-    output              ack_o,
-
-    // Token packet    
-    input [7:0]         token_pid_i,
-    input [6:0]         token_dev_i,
-    input [3:0]         token_ep_i,
-
-    // Data packet
-    input [15:0]        data_len_i,
-    input               data_idx_i,
-
-    // Tx Data FIFO
-    input [7:0]         tx_data_i,
-    output              tx_pop_o,
-
-    // Rx Data FIFO
-    output [7:0]        rx_data_o,
-    output              rx_push_o,
-
-    // Status
-    output              tx_done_o,
-    output              rx_done_o,
-    output              crc_err_o,
-    output              timeout_o,
-    output [7:0]        response_o,
-    output [15:0]       rx_count_o,
-    output              idle_o,
-
-    // UTMI Interface
-    output [7:0]        utmi_data_o,
-    output              utmi_txvalid_o,
-    input               utmi_txready_i,
-    input [7:0]         utmi_data_i,
-    input               utmi_rxvalid_i,
-    input               utmi_rxactive_i
+    // Outputs
+    ,output          ack_o
+    ,output          tx_pop_o
+    ,output [  7:0]  rx_data_o
+    ,output          rx_push_o
+    ,output          tx_done_o
+    ,output          rx_done_o
+    ,output          crc_err_o
+    ,output          timeout_o
+    ,output [  7:0]  response_o
+    ,output [ 15:0]  rx_count_o
+    ,output          idle_o
+    ,output [  7:0]  utmi_data_o
+    ,output          utmi_txvalid_o
 );
+
+
 
 //-----------------------------------------------------------------
 // Registers / Wires
 //-----------------------------------------------------------------
 reg                 start_ack_q;
-reg                 tx_pop_q;
 
 // Status
 reg                 status_tx_done_q;
@@ -92,9 +82,6 @@ reg                 status_crc_err_q;
 reg                 status_timeout_q;
 reg [7:0]           status_response_q;
 
-reg                 utmi_txvalid_q;
-
-reg                 pid_byte_q;
 reg [15:0]          byte_count_q;
 reg                 in_transfer_q;
 
@@ -119,10 +106,13 @@ reg [15:0]          token_q;
 
 reg                 wait_resp_q;
 
+reg [3:0]           state_q;
+
 //-----------------------------------------------------------------
 // Definitions
 //-----------------------------------------------------------------
-localparam RX_TIMEOUT       = 8'd255; // ~5uS
+localparam RX_TIMEOUT       = 8'd255; // ~5uS @ 48MHz
+localparam TX_IFS           = 8'd7; // 2 FS bit times (x5 CLKs @ 60MHz, x4 CLKs @ 48MHz)
 
 localparam PID_OUT          = 8'hE1;
 localparam PID_IN           = 8'h69;
@@ -139,8 +129,8 @@ localparam PID_STALL        = 8'h1E;
 // States
 localparam STATE_IDLE       = 4'd0;
 localparam STATE_RX_DATA    = 4'd1;
-localparam STATE_TX_DATA    = 4'd2;
-localparam STATE_TX_CRC     = 4'd3;
+localparam STATE_TX_PID     = 4'd2;
+localparam STATE_TX_DATA    = 4'd3;
 localparam STATE_TX_CRC1    = 4'd4;
 localparam STATE_TX_CRC2    = 4'd5;
 localparam STATE_TX_TOKEN1  = 4'd6;
@@ -149,17 +139,20 @@ localparam STATE_TX_TOKEN3  = 4'd8;
 localparam STATE_TX_ACKNAK  = 4'd9;
 localparam STATE_TX_WAIT    = 4'd10;
 localparam STATE_RX_WAIT    = 4'd11;
+localparam STATE_TX_IFS     = 4'd12;
 
 localparam RX_TIME_ZERO     = 3'd0;
 localparam RX_TIME_INC      = 3'd1;
-localparam RX_TIME_READY    = 3'd7; // 2-bit times
+localparam RX_TIME_READY    = 3'd7; // 2-bit times (x5 CLKs @ 60MHz, x4 CLKs @ 48MHz)
 
 //-----------------------------------------------------------------
 // Wires
 //-----------------------------------------------------------------
-
-// New byte received
-wire data_ready_w     = (utmi_rxvalid_i & utmi_rxactive_i);
+// Rx data
+wire [7:0] rx_data_w;
+wire       data_ready_w;
+wire       crc_byte_w;
+wire       rx_active_w;
 
 // 2-bit times after last RX (inter-packet delay)?
 wire autoresp_thresh_w = send_ack_q & rx_time_en_q & (rx_time_q == RX_TIME_READY);
@@ -167,12 +160,17 @@ wire autoresp_thresh_w = send_ack_q & rx_time_en_q & (rx_time_q == RX_TIME_READY
 // Response timeout (no response after 500uS from transmit)
 wire rx_resp_timeout_w = (last_tx_time_q >= RX_TIMEOUT) & wait_resp_q;
 
+// Tx - Tx IFS timeout
+wire tx_ifs_ready_w    = (last_tx_time_q >= TX_IFS);
+
+// CRC16 error on received data
+wire crc_error_w = (state_q == STATE_RX_DATA) && !rx_active_w && in_transfer_q        &&
+                   (status_response_q == PID_DATA0 || status_response_q == PID_DATA1) &&
+                   (crc_sum_q != 16'hB001);
+
 //-----------------------------------------------------------------
 // State Machine
 //-----------------------------------------------------------------
-
-// Current state
-reg [3:0] state_q;
 reg [3:0] next_state_r;
 
 always @ *
@@ -212,14 +210,41 @@ begin
             begin
                 // SOF - no data packet
                 if (send_sof_q)
-                    next_state_r = STATE_IDLE;
+                    next_state_r = STATE_TX_IFS;
                 // IN - wait for data
                 else if (in_transfer_q)
                     next_state_r = STATE_RX_WAIT;
                 // OUT/SETUP - Send data or ZLP
                 else
-                    next_state_r = STATE_TX_DATA;
+                    next_state_r = STATE_TX_IFS;
             end
+        end
+        //-----------------------------------------
+        // TX_IFS
+        //-----------------------------------------
+        STATE_TX_IFS :
+        begin
+            // IFS expired
+            if (tx_ifs_ready_w)
+            begin
+                // SOF - no data packet
+                if (send_sof_q)
+                    next_state_r = STATE_IDLE;
+                // OUT/SETUP - Send data or ZLP
+                else
+                    next_state_r = STATE_TX_PID;
+            end
+        end
+        //-----------------------------------------
+        // TX_PID
+        //-----------------------------------------
+        STATE_TX_PID :
+        begin
+            // Last data byte sent?
+            if (utmi_txready_i && (byte_count_q == 16'b0))
+                next_state_r = STATE_TX_CRC1;
+            else if (utmi_txready_i)
+                next_state_r = STATE_TX_DATA;
         end
         //-----------------------------------------
         // TX_DATA
@@ -228,14 +253,7 @@ begin
         begin
             // Last data byte sent?
             if (utmi_txready_i && (byte_count_q == 16'b0))
-                next_state_r = STATE_TX_CRC;
-        end
-        //-----------------------------------------
-        // TX_CRC (generate)
-        //-----------------------------------------
-        STATE_TX_CRC :
-        begin
-            next_state_r  = STATE_TX_CRC1;
+                next_state_r = STATE_TX_CRC1;
         end
         //-----------------------------------------
         // TX_CRC1 (first byte)
@@ -298,10 +316,13 @@ begin
         STATE_RX_DATA :
         begin
             // Receive complete
-            if (~utmi_rxvalid_i & ~utmi_rxactive_i)
+            if (~rx_active_w)
             begin
-                // Send an ACK/NAK response without CPU interaction?
-                if (send_ack_q && (status_response_q == PID_DATA0 || status_response_q == PID_DATA1))
+                // Send ACK but incoming data had CRC error, do not ACK
+                if (send_ack_q && crc_error_w)
+                    next_state_r = STATE_IDLE;
+                // Send an ACK response without CPU interaction?
+                else if (send_ack_q && (status_response_q == PID_DATA0 || status_response_q == PID_DATA1))
                     next_state_r = STATE_TX_WAIT;
                 else
                     next_state_r = STATE_IDLE;
@@ -322,81 +343,17 @@ begin
 end
 
 // Update state
-always @ (posedge rst_i or posedge clk_i)
-if (rst_i == 1'b1)
+always @ (posedge clk_i or posedge rst_i)
+if (rst_i)
     state_q   <= STATE_IDLE;
 else
     state_q   <= next_state_r;
 
 //-----------------------------------------------------------------
-// Tx Enable
-//-----------------------------------------------------------------
-always @ (posedge rst_i or posedge clk_i )
-begin
-   if (rst_i == 1'b1)
-   begin
-       utmi_txvalid_q     <= 1'b0;
-   end
-   else
-   begin
-        case (state_q)
-
-            //-----------------------------------------
-            // TX_TOKEN1 (byte 1 of token)
-            //-----------------------------------------
-            STATE_TX_TOKEN1 :
-            begin
-                utmi_txvalid_q  <= 1'b1;
-            end
-            //-----------------------------------------
-            // TX_TOKEN3 (byte 3 of token)
-            //-----------------------------------------
-            STATE_TX_TOKEN3 :
-            begin
-                // Data sent?
-                if (utmi_txready_i)
-                    utmi_txvalid_q  <= 1'b0;
-            end
-            //-----------------------------------------
-            // TX_DATA
-            //-----------------------------------------
-            STATE_TX_DATA :
-            begin
-                // Tx active
-                utmi_txvalid_q  <= 1'b1;
-            end
-            //-----------------------------------------
-            // TX_CRC (second byte)
-            //-----------------------------------------
-            STATE_TX_CRC2 :
-            begin
-                // Data sent?
-                if (utmi_txready_i)
-                    utmi_txvalid_q  <= 1'b0;
-            end
-            //-----------------------------------------
-            // STATE_TX_ACKNAK
-            //-----------------------------------------
-            STATE_TX_ACKNAK :
-            begin
-                // Data sent?
-                if (utmi_txready_i)
-                    utmi_txvalid_q  <= 1'b0;
-                else
-                    utmi_txvalid_q  <= 1'b1;
-            end
-
-           default :
-               ;
-        endcase
-   end
-end
-
-//-----------------------------------------------------------------
 // Tx Token
 //-----------------------------------------------------------------
-always @ (posedge rst_i or posedge clk_i )
-if (rst_i == 1'b1)
+always @ (posedge clk_i or posedge rst_i)
+if (rst_i)
     token_q         <= 16'h0000;
 else if (state_q == STATE_IDLE)
     token_q         <= {token_dev_i, token_ep_i, 5'b0};
@@ -407,11 +364,11 @@ else if (state_q == STATE_TX_TOKEN1 && utmi_txready_i)
 //-----------------------------------------------------------------
 // Tx Timer
 //-----------------------------------------------------------------
-always @ (posedge rst_i or posedge clk_i )
-if (rst_i == 1'b1)
+always @ (posedge clk_i or posedge rst_i)
+if (rst_i)
     last_tx_time_q <= 8'd0;
 // Start counting from last Tx
-else if (state_q == STATE_IDLE || utmi_txvalid_q)
+else if (state_q == STATE_IDLE || (utmi_txvalid_o && utmi_txready_i))
     last_tx_time_q <= 8'd0;
 // Increment the Tx timeout
 else if (last_tx_time_q != RX_TIMEOUT)
@@ -420,39 +377,30 @@ else if (last_tx_time_q != RX_TIMEOUT)
 //-----------------------------------------------------------------
 // Transmit / Receive counter
 //-----------------------------------------------------------------
-always @ (posedge rst_i or posedge clk_i )
-if (rst_i == 1'b1)
-    byte_count_q     <= 16'h0000;
+always @ (posedge clk_i or posedge rst_i)
+if (rst_i)
+    byte_count_q <= 16'h0000;
 // New transfer request (not automatic SOF request)
 else if (state_q == STATE_IDLE && start_i && !sof_transfer_i)
     byte_count_q <= data_len_i;
+else if (state_q == STATE_RX_WAIT)
+    byte_count_q <= 16'h0000;
 // Transmit byte
-else if (state_q == STATE_TX_DATA && utmi_txready_i)
+else if ((state_q == STATE_TX_PID || state_q == STATE_TX_DATA) && utmi_txready_i)
 begin
     // Count down data left to send
     if (byte_count_q != 16'd0)
         byte_count_q <= byte_count_q - 16'd1;
 end
 // Received byte
-else if ((state_q == STATE_RX_WAIT || state_q == STATE_RX_DATA) && data_ready_w)
+else if (state_q == STATE_RX_DATA && data_ready_w && !crc_byte_w)
     byte_count_q <= byte_count_q + 16'd1;
-
-// Recognise first byte in the Tx data packet
-always @ (posedge rst_i or posedge clk_i )
-if (rst_i == 1'b1)
-    pid_byte_q       <= 1'b0;
-// New transfer request, first byte sent in TX_DATA state is the PID
-else if (state_q == STATE_IDLE && start_i)
-    pid_byte_q   <= 1'b1;
-// Transmit byte
-else if (state_q == STATE_TX_DATA && utmi_txready_i)
-    pid_byte_q   <= 1'b0;
 
 //-----------------------------------------------------------------
 // Transfer start ack
 //-----------------------------------------------------------------
-always @ (posedge rst_i or posedge clk_i )
-if (rst_i == 1'b1)
+always @ (posedge clk_i or posedge rst_i)
+if (rst_i)
     start_ack_q  <= 1'b0;
 // First byte of PID sent, ack transfer request
 else if (state_q == STATE_TX_TOKEN1 && utmi_txready_i)
@@ -463,8 +411,8 @@ else
 //-----------------------------------------------------------------
 // Record request details
 //-----------------------------------------------------------------
-always @ (posedge rst_i or posedge clk_i )
-if (rst_i == 1'b1)
+always @ (posedge clk_i or posedge rst_i)
+if (rst_i)
 begin
     in_transfer_q   <= 1'b0;
     send_ack_q      <= 1'b0;
@@ -493,8 +441,8 @@ end
 //-----------------------------------------------------------------
 // Response delay timer
 //-----------------------------------------------------------------
-always @ (posedge rst_i or posedge clk_i )
-if (rst_i == 1'b1)
+always @ (posedge clk_i or posedge rst_i)
+if (rst_i)
 begin
     rx_time_q       <= RX_TIME_ZERO;
     rx_time_en_q    <= 1'b0;
@@ -516,8 +464,8 @@ else if (rx_time_en_q && rx_time_q != RX_TIME_READY)
     rx_time_q       <= rx_time_q + RX_TIME_INC;
 
 // Response expected
-always @ (posedge rst_i or posedge clk_i )
-if (rst_i == 1'b1)
+always @ (posedge clk_i or posedge rst_i)
+if (rst_i)
     wait_resp_q <= 1'b0;
 // Incoming data
 else if (state_q == STATE_RX_WAIT && data_ready_w)
@@ -528,9 +476,9 @@ else if (state_q == STATE_IDLE && start_i)
 //-----------------------------------------------------------------
 // Status
 //-----------------------------------------------------------------
-always @ (posedge rst_i or posedge clk_i )
+always @ (posedge clk_i or posedge rst_i)
 begin
-   if (rst_i == 1'b1)
+   if (rst_i)
    begin
        status_response_q    <= 8'h00;
        status_timeout_q     <= 1'b0;
@@ -548,7 +496,7 @@ begin
         begin
            // Store response PID
            if (data_ready_w)
-               status_response_q   <= utmi_data_i;
+               status_response_q   <= rx_data_w;
 
            // Waited long enough?
            if (rx_resp_timeout_w)
@@ -611,17 +559,47 @@ begin
    end
 end
 
+
 //-----------------------------------------------------------------
-// FIFO access
+// Data delay (to strip the CRC16 trailing bytes)
 //-----------------------------------------------------------------
-always @ (posedge rst_i or posedge clk_i )
-if (rst_i == 1'b1)
-    tx_pop_q    <= 1'b0;
-// Data byte unload (not PID)
-else if (state_q == STATE_TX_DATA && utmi_txready_i && !pid_byte_q)
-    tx_pop_q    <= 1'b1;
+reg [31:0] data_buffer_q;
+reg [3:0]  data_valid_q;
+reg [3:0]  rx_active_q;
+
+wire shift_en_w = (utmi_rxvalid_i & utmi_rxactive_i) || !utmi_rxactive_i;
+
+always @ (posedge clk_i or posedge rst_i)
+if (rst_i)
+    data_buffer_q <= 32'b0;
+else if (shift_en_w)
+    data_buffer_q <= {utmi_data_i, data_buffer_q[31:8]};
+
+always @ (posedge clk_i or posedge rst_i)
+if (rst_i)
+    data_valid_q <= 4'b0;
+else if (shift_en_w)
+    data_valid_q <= {(utmi_rxvalid_i & utmi_rxactive_i), data_valid_q[3:1]};
 else
-    tx_pop_q    <= 1'b0;
+    data_valid_q <= {data_valid_q[3:1], 1'b0};
+
+reg [1:0] data_crc_q;
+always @ (posedge clk_i or posedge rst_i)
+if (rst_i)
+    data_crc_q <= 2'b0;
+else if (shift_en_w)
+    data_crc_q <= {!utmi_rxactive_i, data_crc_q[1]};
+
+always @ (posedge clk_i or posedge rst_i)
+if (rst_i)
+    rx_active_q <= 4'b0;
+else
+    rx_active_q <= {utmi_rxactive_i, rx_active_q[3:1]};
+
+assign rx_data_w    = data_buffer_q[7:0];
+assign data_ready_w = data_valid_q[0];
+assign crc_byte_w   = data_crc_q[0];
+assign rx_active_w  = rx_active_q[0];
 
 //-----------------------------------------------------------------
 // CRC
@@ -646,9 +624,9 @@ u_crc5
 );
 
 // CRC control / check
-always @ (posedge rst_i or posedge clk_i )
+always @ (posedge clk_i or posedge rst_i)
 begin
-   if (rst_i == 1'b1)
+   if (rst_i)
    begin
        crc_sum_q          <= 16'hFFFF;
        status_crc_err_q   <= 1'b0;
@@ -657,6 +635,14 @@ begin
    begin
         case (state_q)
             //-----------------------------------------
+            // TX_PID
+            //-----------------------------------------
+            STATE_TX_PID :
+            begin
+                // First byte is PID (not CRC'd), reset CRC16
+                crc_sum_q      <= 16'hFFFF;
+            end        
+            //-----------------------------------------
             // TX_DATA
             //-----------------------------------------
             STATE_TX_DATA :
@@ -664,21 +650,9 @@ begin
                 // Data sent?
                 if (utmi_txready_i)
                 begin
-                   // First byte is PID (not CRC'd), reset CRC16
-                   if (pid_byte_q)
-                        crc_sum_q      <= 16'hFFFF;
-                   // Next CRC start value
-                   else
-                        crc_sum_q      <= crc_out_w;
+                    // Next CRC start value
+                    crc_sum_q      <= crc_out_w;
                 end
-            end
-            //-----------------------------------------
-            // TX_CRC (generate)
-            //-----------------------------------------
-            STATE_TX_CRC :
-            begin
-                // Next CRC start value
-                crc_sum_q   <= crc_sum_q ^ 16'hFFFF;
             end
             //-----------------------------------------
             // RX_WAIT
@@ -700,10 +674,10 @@ begin
                    crc_sum_q          <= crc_out_w;
                end
                // Receive complete
-               else if (utmi_rxactive_i == 1'b0)
+               else if (!rx_active_w)
                begin
                     // If some data received, check CRC
-                    if (crc_sum_q != 16'hB001 && in_transfer_q && byte_count_q != 16'd1)
+                    if (crc_error_w)
                         status_crc_err_q   <= 1'b1;
                     else
                         status_crc_err_q   <= 1'b0;
@@ -741,35 +715,80 @@ begin : LOOP
 end
 endgenerate
 
-// Transmit data
-assign utmi_data_o = (state_q == STATE_TX_CRC1)   ? crc_sum_q[7:0] :
-                     (state_q == STATE_TX_CRC2)   ? crc_sum_q[15:8] :
-                     (state_q == STATE_TX_TOKEN1) ? token_pid_i :
-                     (state_q == STATE_TX_TOKEN2) ? token_rev_w[7:0] :
-                     (state_q == STATE_TX_TOKEN3) ? token_rev_w[15:8] :
-                     (state_q == STATE_TX_DATA && pid_byte_q && send_data1_q)  ? PID_DATA1 :
-                     (state_q == STATE_TX_DATA && pid_byte_q && ~send_data1_q) ? PID_DATA0 :
-                     (state_q == STATE_TX_ACKNAK) ? PID_ACK :
-                     tx_data_i;
-assign utmi_txvalid_o = utmi_txvalid_q;
+reg       utmi_txvalid_r;
+reg [7:0] utmi_data_r;
+
+always @ *
+begin
+    if (state_q == STATE_TX_CRC1)
+    begin
+        utmi_txvalid_r = 1'b1;
+        utmi_data_r    = crc_sum_q[7:0] ^ 8'hFF;
+    end
+    else if (state_q == STATE_TX_CRC2)
+    begin
+        utmi_txvalid_r = 1'b1;
+        utmi_data_r    = crc_sum_q[15:8] ^ 8'hFF;
+    end
+    else if (state_q == STATE_TX_TOKEN1)
+    begin
+        utmi_txvalid_r = 1'b1;
+        utmi_data_r    = token_pid_i;
+    end
+    else if (state_q == STATE_TX_TOKEN2)
+    begin
+        utmi_txvalid_r = 1'b1;
+        utmi_data_r    = token_rev_w[7:0];
+    end
+    else if (state_q == STATE_TX_TOKEN3)
+    begin
+        utmi_txvalid_r = 1'b1;
+        utmi_data_r    = token_rev_w[15:8];
+    end
+    else if (state_q == STATE_TX_PID)
+    begin
+        utmi_txvalid_r = 1'b1;
+        utmi_data_r    = send_data1_q ? PID_DATA1 : PID_DATA0;
+    end
+    else if (state_q == STATE_TX_ACKNAK)
+    begin
+        utmi_txvalid_r = 1'b1;
+        utmi_data_r    = PID_ACK;
+    end
+    else if (state_q == STATE_TX_DATA)
+    begin
+        utmi_txvalid_r = 1'b1;
+        utmi_data_r    = tx_data_i;
+    end
+    else
+    begin
+        utmi_txvalid_r = 1'b0;
+        utmi_data_r    = 8'b0;
+    end
+end
+
+assign utmi_txvalid_o = utmi_txvalid_r;
+assign utmi_data_o    = utmi_data_r;
 
 // Push incoming data into FIFO (not PID or CRC)
-assign rx_data_o    = utmi_data_i;
-assign rx_push_o    = (state_q != STATE_IDLE && state_q != STATE_RX_WAIT) & data_ready_w;
+assign rx_data_o    = rx_data_w;
+assign rx_push_o    = (state_q != STATE_IDLE && state_q != STATE_RX_WAIT) & data_ready_w & !crc_byte_w;
 
-assign crc_data_in_w = (state_q == STATE_RX_DATA || state_q == STATE_RX_WAIT) ? utmi_data_i : tx_data_i;
+assign crc_data_in_w = (state_q == STATE_RX_DATA) ? rx_data_w : tx_data_i;
 
 assign rx_count_o   = byte_count_q;
 assign idle_o       = (state_q == STATE_IDLE);
 
 assign ack_o        = start_ack_q;
 
-assign tx_pop_o     = tx_pop_q;
+assign tx_pop_o     = state_q == STATE_TX_DATA && utmi_txready_i;
 
 assign tx_done_o    = status_tx_done_q;
 assign rx_done_o    = status_rx_done_q;
 assign crc_err_o    = status_crc_err_q;
 assign timeout_o    = status_timeout_q;
 assign response_o   = status_response_q;
+
+
 
 endmodule
