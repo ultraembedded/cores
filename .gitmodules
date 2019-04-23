@@ -1,0 +1,3 @@
+[submodule "spiflash"]
+	path = spiflash
+	url = https://github.com/ultraembedded/core_spiflash

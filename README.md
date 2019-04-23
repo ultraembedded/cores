@@ -2,6 +2,11 @@
 
 Github:   [http://github.com/ultraembedded/cores](https://github.com/ultraembedded/cores/tree/master)
 
+#### Cloning
+```
+git clone --recursive https://github.com/ultraembedded/cores.git
+
+```
 
 #### Catalogue
 
@@ -14,6 +19,7 @@ Github:   [http://github.com/ultraembedded/cores](https://github.com/ultraembedd
 | irq_ctrl | Simple Linux support interrupt controller |
 | sdram | Simple SDRAM Controller |
 | spdif | SPDIF Transmitter |
+| spiflash | SPI-Flash XIP Interface |
 | spilite_axi4l | SPI-Lite SPI Master Interface |
 | uart | UART |
 | ulpi_wrapper | ULPI Link Wrapper |
