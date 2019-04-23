@@ -1,3 +1,6 @@
 [submodule "spiflash"]
 	path = spiflash
 	url = https://github.com/ultraembedded/core_spiflash
+[submodule "usb_host"]
+	path = usb_host
+	url = https://github.com/ultraembedded/core_usb_host.git
