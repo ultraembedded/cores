@@ -7,3 +7,6 @@
 [submodule "usb_cdc"]
 	path = usb_cdc
 	url = https://github.com/ultraembedded/core_usb_cdc
+[submodule "usb_fs_phy"]
+	path = usb_fs_phy
+	url = https://github.com/ultraembedded/core_usb_fs_phy

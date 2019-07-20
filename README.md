@@ -28,5 +28,6 @@ git clone --recursive https://github.com/ultraembedded/cores.git
 | ulpi_wrapper | ULPI Link Wrapper |
 | usb_cdc | USB CDC Device |
 | usb_device | USB Peripheral Interface |
+| usb_fs_phy | USB Full Speed PHY |
 | usb_host | USB 1.1 Host Controller |
 | usb_sniffer | USB Sniffer |
