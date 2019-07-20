@@ -10,3 +10,6 @@
 [submodule "usb_fs_phy"]
 	path = usb_fs_phy
 	url = https://github.com/ultraembedded/core_usb_fs_phy
+[submodule "usb_bridge"]
+	path = usb_bridge
+	url = https://github.com/ultraembedded/core_usb_bridge.git

@@ -26,6 +26,7 @@ git clone --recursive https://github.com/ultraembedded/cores.git
 | spilite_axi4l | SPI-Lite SPI Master Interface |
 | uart | UART |
 | ulpi_wrapper | ULPI Link Wrapper |
+| usb_bridge | USB -> AXI4-Lite Debug Bridge |
 | usb_cdc | USB CDC Device |
 | usb_device | USB Peripheral Interface |
 | usb_fs_phy | USB Full Speed PHY |
