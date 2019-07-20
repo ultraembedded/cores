@@ -4,3 +4,6 @@
 [submodule "usb_host"]
 	path = usb_host
 	url = https://github.com/ultraembedded/core_usb_host.git
+[submodule "usb_cdc"]
+	path = usb_cdc
+	url = https://github.com/ultraembedded/core_usb_cdc

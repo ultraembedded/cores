@@ -3,6 +3,9 @@
 Github:   [http://github.com/ultraembedded/cores](https://github.com/ultraembedded/cores/tree/master)
 
 #### Cloning
+
+This repo contains submodules, to clone them;
+
 ```
 git clone --recursive https://github.com/ultraembedded/cores.git
 
@@ -23,6 +26,7 @@ git clone --recursive https://github.com/ultraembedded/cores.git
 | spilite_axi4l | SPI-Lite SPI Master Interface |
 | uart | UART |
 | ulpi_wrapper | ULPI Link Wrapper |
+| usb_cdc | USB CDC Device |
 | usb_device | USB Peripheral Interface |
 | usb_host | USB 1.1 Host Controller |
 | usb_sniffer | USB Sniffer |
