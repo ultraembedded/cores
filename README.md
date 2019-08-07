@@ -20,7 +20,8 @@ git clone --recursive https://github.com/ultraembedded/cores.git
 | ftdi_async_bridge | FTDI Asynchronous FIFO Interface |
 | i2s | I2S Master |
 | irq_ctrl | Simple Linux support interrupt controller |
-| sdram | Simple SDRAM Controller |
+| sdram | Simple SDRAM Controller (Wishbone) |
+| sdram_axi4 | Simple SDRAM Controller (AXI-4) |
 | spdif | SPDIF Transmitter |
 | spiflash | SPI-Flash XIP Interface |
 | spilite_axi4l | SPI-Lite SPI Master Interface |

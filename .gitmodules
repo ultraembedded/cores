@@ -13,3 +13,6 @@
 [submodule "usb_bridge"]
 	path = usb_bridge
 	url = https://github.com/ultraembedded/core_usb_bridge.git
+[submodule "sdram_axi4"]
+	path = sdram_axi4
+	url = https://github.com/ultraembedded/core_sdram_axi4
