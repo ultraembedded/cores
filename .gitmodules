@@ -16,3 +16,6 @@
 [submodule "sdram_axi4"]
 	path = sdram_axi4
 	url = https://github.com/ultraembedded/core_sdram_axi4
+[submodule "dbg_bridge"]
+	path = dbg_bridge
+	url = https://github.com/ultraembedded/core_dbg_bridge
