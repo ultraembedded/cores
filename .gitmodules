@@ -19,3 +19,6 @@
 [submodule "dbg_bridge"]
 	path = dbg_bridge
 	url = https://github.com/ultraembedded/core_dbg_bridge
+[submodule "ftdi_bridge"]
+	path = ftdi_bridge
+	url = https://github.com/ultraembedded/core_ftdi_bridge.git
