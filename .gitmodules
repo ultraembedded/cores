@@ -22,3 +22,6 @@
 [submodule "ftdi_bridge"]
 	path = ftdi_bridge
 	url = https://github.com/ultraembedded/core_ftdi_bridge.git
+[submodule "usb_serial"]
+	path = usb_serial
+	url = https://github.com/ultraembedded/core_usb_uart.git

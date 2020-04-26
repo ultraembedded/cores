@@ -34,3 +34,4 @@ git clone --recursive https://github.com/ultraembedded/cores.git
 | usb_fs_phy | USB Full Speed PHY |
 | usb_host | USB 1.1 Host Controller |
 | usb_sniffer | USB Sniffer |
+| usb_serial | USB to UART |
