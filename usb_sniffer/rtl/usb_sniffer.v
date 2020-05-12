@@ -365,7 +365,7 @@ begin
                 next_state_r  = STATE_RX_DATA_IGNORE;
         end
         // Reset state change, record status
-        else if (rst_change_w && !buffer_full_w)
+        else if (rst_change_w && !buffer_full_w && cfg_enabled_w)
             next_state_r  = STATE_UPDATE_RST;
     end
 
