@@ -28,3 +28,9 @@
 [submodule "ulpi_wrapper"]
 	path = ulpi_wrapper
 	url = https://github.com/ultraembedded/core_ulpi_wrapper.git
+[submodule "ft60x_axi"]
+	path = ft60x_axi
+	url = https://github.com/ultraembedded/core_ft60x_axi
+[submodule "usb_sniffer"]
+	path = usb_sniffer
+	url = https://github.com/ultraembedded/core_usb_sniffer

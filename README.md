@@ -19,6 +19,7 @@ git clone --recursive https://github.com/ultraembedded/cores.git
 | dbg_bridge | UART -> AXI4 Debug Bridge |
 | ftdi_async_bridge | FTDI Asynchronous FIFO Interface (Wishbone) |
 | ftdi_bridge | FTDI Asynchronous/Synchronous FIFO Interface (AXI-4) |
+| ft60x_axi | FTDI FT601 USB3.0 to high-performance AXI4 bus master |
 | i2s | I2S Master |
 | irq_ctrl | Simple Linux support interrupt controller |
 | sdram | Simple SDRAM Controller (Wishbone) |
