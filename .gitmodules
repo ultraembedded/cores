@@ -34,3 +34,6 @@
 [submodule "usb_sniffer"]
 	path = usb_sniffer
 	url = https://github.com/ultraembedded/core_usb_sniffer
+[submodule "dvi_framebuffer"]
+	path = dvi_framebuffer
+	url = https://github.com/ultraembedded/core_dvi_framebuffer

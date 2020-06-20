@@ -17,6 +17,7 @@ git clone --recursive https://github.com/ultraembedded/cores.git
 | ---- | ------------- |
 | asram16_axi4 | AXI4 -> Async SRAM (16-bit) Interface |
 | dbg_bridge | UART -> AXI4 Debug Bridge |
+| dvi_framebuffer | DVI/HDMI framebuffer with AXI-4 bus master  |
 | ftdi_async_bridge | FTDI Asynchronous FIFO Interface (Wishbone) |
 | ftdi_bridge | FTDI Asynchronous/Synchronous FIFO Interface (AXI-4) |
 | ft60x_axi | FTDI FT601 USB3.0 to high-performance AXI4 bus master |
