@@ -74,11 +74,6 @@ reg [STATE_W-1:0] state_q;
 reg [STATE_W-1:0] next_state_r;
 
 //-----------------------------------------------------------------
-// Wire / Regs
-//-----------------------------------------------------------------
-reg last_q;
-
-//-----------------------------------------------------------------
 // Request Type
 //-----------------------------------------------------------------
 reg data_pid_q;
@@ -290,25 +285,21 @@ if (rst_i)
 begin
     valid_q <= 1'b0;
     data_q  <= 8'b0;
-    last_q  <= 1'b0;
 end
 else if (!enable_i)
 begin
     valid_q <= 1'b0;
     data_q  <= 8'b0;
-    last_q  <= 1'b0;
 end
 else if (tx_valid_i && tx_accept_o)
 begin
     valid_q <= 1'b1;
     data_q  <= tx_pid_i;
-    last_q  <= 1'b0;
 end
 else if (utmi_txready_i)
 begin
     valid_q <= 1'b0;
     data_q  <= 8'b0;
-    last_q  <= 1'b0;
 end
 
 reg       utmi_txvalid_r;

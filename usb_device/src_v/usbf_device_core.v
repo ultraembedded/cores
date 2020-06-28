@@ -187,7 +187,8 @@ wire                    tx_accept_w;
 reg                     rx_space_q;
 reg                     rx_space_r;
 reg                     tx_ready_r;
-reg                     ep_data_bit_r;
+reg                     out_data_bit_r;
+reg                     in_data_bit_r;
 
 reg                     ep_stall_r;
 reg                     ep_iso_r;
@@ -195,12 +196,14 @@ reg                     ep_iso_r;
 reg                     rx_enable_q;
 reg                     rx_setup_q;
 
-reg                     ep0_data_bit_q;
-reg                     ep1_data_bit_q;
-reg                     ep2_data_bit_q;
-reg                     ep3_data_bit_q;
-
-wire                    status_stage_w;
+reg                     ep0_out_data_bit_q;
+reg                     ep0_in_data_bit_q;
+reg                     ep1_out_data_bit_q;
+reg                     ep1_in_data_bit_q;
+reg                     ep2_out_data_bit_q;
+reg                     ep2_in_data_bit_q;
+reg                     ep3_out_data_bit_q;
+reg                     ep3_in_data_bit_q;
 
 reg [`USB_DEV_W-1:0]    current_addr_q;
 
@@ -282,9 +285,10 @@ assign ep3_tx_data_accept_o = tx_data_accept_w & (token_ep_w == 4'd3);
 
 always @ *
 begin
-    rx_space_r    = 1'b0;
-    tx_ready_r    = 1'b0;
-    ep_data_bit_r = 1'b0;
+    rx_space_r     = 1'b0;
+    tx_ready_r     = 1'b0;
+    out_data_bit_r = 1'b0;
+    in_data_bit_r  = 1'b0;
 
     ep_stall_r = 1'b0;
     ep_iso_r   = 1'b0;
@@ -294,7 +298,8 @@ begin
     begin
         rx_space_r    = ep0_rx_space_i;
         tx_ready_r    = ep0_tx_ready_i;
-        ep_data_bit_r = ep0_data_bit_q | status_stage_w;
+        out_data_bit_r= ep0_out_data_bit_q;
+        in_data_bit_r = ep0_in_data_bit_q;
         ep_stall_r    = ep0_stall_i;
         ep_iso_r      = ep0_iso_i;
     end
@@ -302,7 +307,8 @@ begin
     begin
         rx_space_r    = ep1_rx_space_i;
         tx_ready_r    = ep1_tx_ready_i;
-        ep_data_bit_r = ep1_data_bit_q | status_stage_w;
+        out_data_bit_r= ep1_out_data_bit_q;
+        in_data_bit_r = ep1_in_data_bit_q;
         ep_stall_r    = ep1_stall_i;
         ep_iso_r      = ep1_iso_i;
     end
@@ -310,7 +316,8 @@ begin
     begin
         rx_space_r    = ep2_rx_space_i;
         tx_ready_r    = ep2_tx_ready_i;
-        ep_data_bit_r = ep2_data_bit_q | status_stage_w;
+        out_data_bit_r= ep2_out_data_bit_q;
+        in_data_bit_r = ep2_in_data_bit_q;
         ep_stall_r    = ep2_stall_i;
         ep_iso_r      = ep2_iso_i;
     end
@@ -318,7 +325,8 @@ begin
     begin
         rx_space_r    = ep3_rx_space_i;
         tx_ready_r    = ep3_tx_ready_i;
-        ep_data_bit_r = ep3_data_bit_q | status_stage_w;
+        out_data_bit_r= ep3_out_data_bit_q;
+        in_data_bit_r = ep3_in_data_bit_q;
         ep_stall_r    = ep3_stall_i;
         ep_iso_r      = ep3_iso_i;
     end
@@ -466,8 +474,8 @@ begin
 
         // TODO: Sort out ISO data bit handling
         // Check for expected DATAx PID
-        if ((token_pid_w == `PID_DATA0 &&  ep_data_bit_r && !ep_iso_r) ||
-            (token_pid_w == `PID_DATA1 && !ep_data_bit_r && !ep_iso_r))
+        if ((token_pid_w == `PID_DATA0 &&  out_data_bit_r && !ep_iso_r) ||
+            (token_pid_w == `PID_DATA1 && !out_data_bit_r && !ep_iso_r))
             next_state_r  = STATE_RX_DATA_IGNORE;
         // Receive complete
         else if (rx_data_valid_w && rx_last_o)
@@ -587,7 +595,7 @@ begin
                 begin
                     tx_valid_r = 1'b1;
                     // TODO: Handle MDATA for ISOs
-                    tx_pid_r   = ep_data_bit_r ? `PID_DATA1 : `PID_DATA0;
+                    tx_pid_r   = in_data_bit_r ? `PID_DATA1 : `PID_DATA0;
                 end
                 // No data to TX
                 else
@@ -644,8 +652,8 @@ begin
                 tx_pid_r   = `PID_STALL;
             end
             // DATAx bit mismatch
-            else if ( (token_pid_w == `PID_DATA0 && ep_data_bit_r) ||
-                      (token_pid_w == `PID_DATA1 && !ep_data_bit_r) )
+            else if ( (token_pid_w == `PID_DATA0 && out_data_bit_r) ||
+                      (token_pid_w == `PID_DATA1 && !out_data_bit_r) )
             begin
                 // Ack transfer to resync
                 tx_valid_r = 1'b1;
@@ -725,10 +733,22 @@ reg addr_update_pending_q;
 wire ep0_tx_zlp_w = ep0_tx_data_valid_i && (ep0_tx_data_strb_i == 1'b0) && 
                     ep0_tx_data_last_i && ep0_tx_data_accept_o;
 
+reg sent_status_zlp_q;
+
+always @ (posedge clk_i or posedge rst_i)
+if (rst_i)
+    sent_status_zlp_q   <= 1'b0;
+else if (usb_rst_w)
+    sent_status_zlp_q   <= 1'b0;
+else if (ep0_tx_zlp_w)
+    sent_status_zlp_q   <= 1'b1;
+else if (rx_handshake_w)
+    sent_status_zlp_q   <= 1'b0;
+
 always @ (posedge clk_i or posedge rst_i)
 if (rst_i)
     addr_update_pending_q   <= 1'b0;
-else if (ep0_tx_zlp_w || usb_rst_w)
+else if ((sent_status_zlp_q && addr_update_pending_q && rx_handshake_w && token_pid_w == `PID_ACK) || usb_rst_w)
     addr_update_pending_q   <= 1'b0;
 // TODO: Use write strobe
 else if (reg_dev_addr_i != current_addr_q)
@@ -739,44 +759,19 @@ if (rst_i)
     current_addr_q  <= `USB_DEV_W'b0;
 else if (usb_rst_w)
     current_addr_q  <= `USB_DEV_W'b0;
-else if (ep0_tx_zlp_w && addr_update_pending_q)
+else if (sent_status_zlp_q && addr_update_pending_q && rx_handshake_w && token_pid_w == `PID_ACK)
     current_addr_q  <= reg_dev_addr_i;
-
-//-----------------------------------------------------------------
-// SETUP request tracking
-//-----------------------------------------------------------------
-reg ep0_dir_in_q;
-reg ep0_dir_out_q;
-
-always @ (posedge clk_i or posedge rst_i)
-if (rst_i)
-    ep0_dir_in_q <= 1'b0;
-else if (usb_rst_w ||reg_chirp_en_i)
-    ep0_dir_in_q <= 1'b0;
-else if ((state_q == STATE_RX_IDLE) && token_valid_w && (token_pid_w == `PID_SETUP) && (token_ep_w == 4'd0))
-    ep0_dir_in_q <= 1'b0;
-else if ((state_q == STATE_RX_IDLE) && token_valid_w && (token_pid_w == `PID_IN) && (token_ep_w == 4'd0))
-    ep0_dir_in_q <= 1'b1;
-
-always @ (posedge clk_i or posedge rst_i)
-if (rst_i)
-    ep0_dir_out_q <= 1'b0;
-else if (usb_rst_w ||reg_chirp_en_i)
-    ep0_dir_out_q <= 1'b0;
-else if ((state_q == STATE_RX_IDLE) && token_valid_w && (token_pid_w == `PID_SETUP) && (token_ep_w == 4'd0))
-    ep0_dir_out_q <= 1'b0;
-else if ((state_q == STATE_RX_IDLE) && token_valid_w && (token_pid_w == `PID_OUT) && (token_ep_w == 4'd0))
-    ep0_dir_out_q <= 1'b1;
-
-assign status_stage_w = ep0_dir_in_q && ep0_dir_out_q && (token_ep_w == 4'd0);
 
 //-----------------------------------------------------------------
 // Endpoint data bit toggle
 //-----------------------------------------------------------------
-reg new_data_bit_r;
+reg new_out_bit_r;
+reg new_in_bit_r;
+
 always @ *
 begin
-    new_data_bit_r = ep_data_bit_r;
+    new_out_bit_r = out_data_bit_r;
+    new_in_bit_r  = in_data_bit_r;
 
     case (state_q)
     //-----------------------------------------
@@ -797,15 +792,15 @@ begin
             else if (ep_stall_r)
                 ;
             // DATAx bit mismatch
-            else if ( (token_pid_w == `PID_DATA0 && ep_data_bit_r) ||
-                      (token_pid_w == `PID_DATA1 && !ep_data_bit_r) )
+            else if ( (token_pid_w == `PID_DATA0 && out_data_bit_r) ||
+                      (token_pid_w == `PID_DATA1 && !out_data_bit_r) )
                 ;
             // NAKd
             else if (!rx_space_q)
                 ;
             // Data accepted - toggle data bit
             else
-                new_data_bit_r = !ep_data_bit_r;
+                new_out_bit_r = !out_data_bit_r;
        end
     end
     //-----------------------------------------
@@ -818,12 +813,15 @@ begin
         begin
             // SETUP packets always start with DATA0
             if (token_pid_w == `PID_SETUP)
-                new_data_bit_r = 1'b0;
+            begin
+                new_out_bit_r = 1'b0;
+                new_in_bit_r  = 1'b1;
+            end
         end
         // ACK received
         else if (rx_handshake_w && token_pid_w == `PID_ACK)
         begin
-            new_data_bit_r = !ep_data_bit_r;
+            new_in_bit_r = !in_data_bit_r;
         end
     end
     default:
@@ -833,32 +831,68 @@ end
 
 always @ (posedge clk_i or posedge rst_i)
 if (rst_i)
-    ep0_data_bit_q <= 1'b0;
+begin
+    ep0_out_data_bit_q <= 1'b0;
+    ep0_in_data_bit_q  <= 1'b0;
+end
 else if (usb_rst_w)
-    ep0_data_bit_q <= 1'b0;
+begin
+    ep0_out_data_bit_q <= 1'b0;
+    ep0_in_data_bit_q  <= 1'b0;
+end
 else if (token_ep_w == 4'd0)
-    ep0_data_bit_q <= new_data_bit_r;
+begin
+    ep0_out_data_bit_q <= new_out_bit_r;
+    ep0_in_data_bit_q  <= new_in_bit_r;
+end
 always @ (posedge clk_i or posedge rst_i)
 if (rst_i)
-    ep1_data_bit_q <= 1'b0;
+begin
+    ep1_out_data_bit_q <= 1'b0;
+    ep1_in_data_bit_q  <= 1'b0;
+end
 else if (usb_rst_w)
-    ep1_data_bit_q <= 1'b0;
+begin
+    ep1_out_data_bit_q <= 1'b0;
+    ep1_in_data_bit_q  <= 1'b0;
+end
 else if (token_ep_w == 4'd1)
-    ep1_data_bit_q <= new_data_bit_r;
+begin
+    ep1_out_data_bit_q <= new_out_bit_r;
+    ep1_in_data_bit_q  <= new_in_bit_r;
+end
 always @ (posedge clk_i or posedge rst_i)
 if (rst_i)
-    ep2_data_bit_q <= 1'b0;
+begin
+    ep2_out_data_bit_q <= 1'b0;
+    ep2_in_data_bit_q  <= 1'b0;
+end
 else if (usb_rst_w)
-    ep2_data_bit_q <= 1'b0;
+begin
+    ep2_out_data_bit_q <= 1'b0;
+    ep2_in_data_bit_q  <= 1'b0;
+end
 else if (token_ep_w == 4'd2)
-    ep2_data_bit_q <= new_data_bit_r;
+begin
+    ep2_out_data_bit_q <= new_out_bit_r;
+    ep2_in_data_bit_q  <= new_in_bit_r;
+end
 always @ (posedge clk_i or posedge rst_i)
 if (rst_i)
-    ep3_data_bit_q <= 1'b0;
+begin
+    ep3_out_data_bit_q <= 1'b0;
+    ep3_in_data_bit_q  <= 1'b0;
+end
 else if (usb_rst_w)
-    ep3_data_bit_q <= 1'b0;
+begin
+    ep3_out_data_bit_q <= 1'b0;
+    ep3_in_data_bit_q  <= 1'b0;
+end
 else if (token_ep_w == 4'd3)
-    ep3_data_bit_q <= new_data_bit_r;
+begin
+    ep3_out_data_bit_q <= new_out_bit_r;
+    ep3_in_data_bit_q  <= new_in_bit_r;
+end
 
 //-----------------------------------------------------------------
 // Reset event

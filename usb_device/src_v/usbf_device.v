@@ -78,6 +78,47 @@ module usbf_device
 );
 
 //-----------------------------------------------------------------
+// Write address / data split
+//-----------------------------------------------------------------
+// Address but no data ready
+reg awvalid_q;
+
+// Data but no data ready
+reg wvalid_q;
+
+wire wr_cmd_accepted_w  = (cfg_awvalid_i && cfg_awready_o) || awvalid_q;
+wire wr_data_accepted_w = (cfg_wvalid_i  && cfg_wready_o)  || wvalid_q;
+
+always @ (posedge clk_i or posedge rst_i)
+if (rst_i)
+    awvalid_q <= 1'b0;
+else if (cfg_awvalid_i && cfg_awready_o && !wr_data_accepted_w)
+    awvalid_q <= 1'b1;
+else if (wr_data_accepted_w)
+    awvalid_q <= 1'b0;
+
+always @ (posedge clk_i or posedge rst_i)
+if (rst_i)
+    wvalid_q <= 1'b0;
+else if (cfg_wvalid_i && cfg_wready_o && !wr_cmd_accepted_w)
+    wvalid_q <= 1'b1;
+else if (wr_cmd_accepted_w)
+    wvalid_q <= 1'b0;
+
+//-----------------------------------------------------------------
+// Capture address (for delayed data)
+//-----------------------------------------------------------------
+reg [7:0] wr_addr_q;
+
+always @ (posedge clk_i or posedge rst_i)
+if (rst_i)
+    wr_addr_q <= 8'b0;
+else if (cfg_awvalid_i && cfg_awready_o)
+    wr_addr_q <= cfg_awaddr_i[7:0];
+
+wire [7:0] wr_addr_w = awvalid_q ? wr_addr_q : cfg_awaddr_i[7:0];
+
+//-----------------------------------------------------------------
 // Retime write data
 //-----------------------------------------------------------------
 reg [31:0] wr_data_q;
@@ -85,21 +126,21 @@ reg [31:0] wr_data_q;
 always @ (posedge clk_i or posedge rst_i)
 if (rst_i)
     wr_data_q <= 32'b0;
-else
+else if (cfg_wvalid_i && cfg_wready_o)
     wr_data_q <= cfg_wdata_i;
 
 //-----------------------------------------------------------------
 // Request Logic
 //-----------------------------------------------------------------
 wire read_en_w  = cfg_arvalid_i & cfg_arready_o;
-wire write_en_w = cfg_awvalid_i & cfg_awready_o;
+wire write_en_w = wr_cmd_accepted_w && wr_data_accepted_w;
 
 //-----------------------------------------------------------------
 // Accept Logic
 //-----------------------------------------------------------------
 assign cfg_arready_o = ~cfg_rvalid_o;
-assign cfg_awready_o = ~cfg_bvalid_o && ~cfg_arvalid_i; 
-assign cfg_wready_o  = cfg_awready_o;
+assign cfg_awready_o = ~cfg_bvalid_o && ~cfg_arvalid_i && ~awvalid_q;
+assign cfg_wready_o  = ~cfg_bvalid_o && ~cfg_arvalid_i && ~wvalid_q;
 
 
 //-----------------------------------------------------------------
@@ -110,7 +151,7 @@ reg usb_func_ctrl_wr_q;
 always @ (posedge clk_i or posedge rst_i)
 if (rst_i)
     usb_func_ctrl_wr_q <= 1'b0;
-else if (write_en_w && (cfg_awaddr_i[7:0] == `USB_FUNC_CTRL))
+else if (write_en_w && (wr_addr_w[7:0] == `USB_FUNC_CTRL))
     usb_func_ctrl_wr_q <= 1'b1;
 else
     usb_func_ctrl_wr_q <= 1'b0;
@@ -121,7 +162,7 @@ reg        usb_func_ctrl_hs_chirp_en_q;
 always @ (posedge clk_i or posedge rst_i)
 if (rst_i)
     usb_func_ctrl_hs_chirp_en_q <= 1'd`USB_FUNC_CTRL_HS_CHIRP_EN_DEFAULT;
-else if (write_en_w && (cfg_awaddr_i[7:0] == `USB_FUNC_CTRL))
+else if (write_en_w && (wr_addr_w[7:0] == `USB_FUNC_CTRL))
     usb_func_ctrl_hs_chirp_en_q <= cfg_wdata_i[`USB_FUNC_CTRL_HS_CHIRP_EN_R];
 
 wire        usb_func_ctrl_hs_chirp_en_out_w = usb_func_ctrl_hs_chirp_en_q;
@@ -133,7 +174,7 @@ reg        usb_func_ctrl_phy_dmpulldown_q;
 always @ (posedge clk_i or posedge rst_i)
 if (rst_i)
     usb_func_ctrl_phy_dmpulldown_q <= 1'd`USB_FUNC_CTRL_PHY_DMPULLDOWN_DEFAULT;
-else if (write_en_w && (cfg_awaddr_i[7:0] == `USB_FUNC_CTRL))
+else if (write_en_w && (wr_addr_w[7:0] == `USB_FUNC_CTRL))
     usb_func_ctrl_phy_dmpulldown_q <= cfg_wdata_i[`USB_FUNC_CTRL_PHY_DMPULLDOWN_R];
 
 wire        usb_func_ctrl_phy_dmpulldown_out_w = usb_func_ctrl_phy_dmpulldown_q;
@@ -145,7 +186,7 @@ reg        usb_func_ctrl_phy_dppulldown_q;
 always @ (posedge clk_i or posedge rst_i)
 if (rst_i)
     usb_func_ctrl_phy_dppulldown_q <= 1'd`USB_FUNC_CTRL_PHY_DPPULLDOWN_DEFAULT;
-else if (write_en_w && (cfg_awaddr_i[7:0] == `USB_FUNC_CTRL))
+else if (write_en_w && (wr_addr_w[7:0] == `USB_FUNC_CTRL))
     usb_func_ctrl_phy_dppulldown_q <= cfg_wdata_i[`USB_FUNC_CTRL_PHY_DPPULLDOWN_R];
 
 wire        usb_func_ctrl_phy_dppulldown_out_w = usb_func_ctrl_phy_dppulldown_q;
@@ -157,7 +198,7 @@ reg        usb_func_ctrl_phy_termselect_q;
 always @ (posedge clk_i or posedge rst_i)
 if (rst_i)
     usb_func_ctrl_phy_termselect_q <= 1'd`USB_FUNC_CTRL_PHY_TERMSELECT_DEFAULT;
-else if (write_en_w && (cfg_awaddr_i[7:0] == `USB_FUNC_CTRL))
+else if (write_en_w && (wr_addr_w[7:0] == `USB_FUNC_CTRL))
     usb_func_ctrl_phy_termselect_q <= cfg_wdata_i[`USB_FUNC_CTRL_PHY_TERMSELECT_R];
 
 wire        usb_func_ctrl_phy_termselect_out_w = usb_func_ctrl_phy_termselect_q;
@@ -169,7 +210,7 @@ reg [1:0]  usb_func_ctrl_phy_xcvrselect_q;
 always @ (posedge clk_i or posedge rst_i)
 if (rst_i)
     usb_func_ctrl_phy_xcvrselect_q <= 2'd`USB_FUNC_CTRL_PHY_XCVRSELECT_DEFAULT;
-else if (write_en_w && (cfg_awaddr_i[7:0] == `USB_FUNC_CTRL))
+else if (write_en_w && (wr_addr_w[7:0] == `USB_FUNC_CTRL))
     usb_func_ctrl_phy_xcvrselect_q <= cfg_wdata_i[`USB_FUNC_CTRL_PHY_XCVRSELECT_R];
 
 wire [1:0]  usb_func_ctrl_phy_xcvrselect_out_w = usb_func_ctrl_phy_xcvrselect_q;
@@ -181,7 +222,7 @@ reg [1:0]  usb_func_ctrl_phy_opmode_q;
 always @ (posedge clk_i or posedge rst_i)
 if (rst_i)
     usb_func_ctrl_phy_opmode_q <= 2'd`USB_FUNC_CTRL_PHY_OPMODE_DEFAULT;
-else if (write_en_w && (cfg_awaddr_i[7:0] == `USB_FUNC_CTRL))
+else if (write_en_w && (wr_addr_w[7:0] == `USB_FUNC_CTRL))
     usb_func_ctrl_phy_opmode_q <= cfg_wdata_i[`USB_FUNC_CTRL_PHY_OPMODE_R];
 
 wire [1:0]  usb_func_ctrl_phy_opmode_out_w = usb_func_ctrl_phy_opmode_q;
@@ -193,7 +234,7 @@ reg        usb_func_ctrl_int_en_sof_q;
 always @ (posedge clk_i or posedge rst_i)
 if (rst_i)
     usb_func_ctrl_int_en_sof_q <= 1'd`USB_FUNC_CTRL_INT_EN_SOF_DEFAULT;
-else if (write_en_w && (cfg_awaddr_i[7:0] == `USB_FUNC_CTRL))
+else if (write_en_w && (wr_addr_w[7:0] == `USB_FUNC_CTRL))
     usb_func_ctrl_int_en_sof_q <= cfg_wdata_i[`USB_FUNC_CTRL_INT_EN_SOF_R];
 
 wire        usb_func_ctrl_int_en_sof_out_w = usb_func_ctrl_int_en_sof_q;
@@ -207,7 +248,7 @@ reg usb_func_stat_wr_q;
 always @ (posedge clk_i or posedge rst_i)
 if (rst_i)
     usb_func_stat_wr_q <= 1'b0;
-else if (write_en_w && (cfg_awaddr_i[7:0] == `USB_FUNC_STAT))
+else if (write_en_w && (wr_addr_w[7:0] == `USB_FUNC_STAT))
     usb_func_stat_wr_q <= 1'b1;
 else
     usb_func_stat_wr_q <= 1'b0;
@@ -232,7 +273,7 @@ reg usb_func_addr_wr_q;
 always @ (posedge clk_i or posedge rst_i)
 if (rst_i)
     usb_func_addr_wr_q <= 1'b0;
-else if (write_en_w && (cfg_awaddr_i[7:0] == `USB_FUNC_ADDR))
+else if (write_en_w && (wr_addr_w[7:0] == `USB_FUNC_ADDR))
     usb_func_addr_wr_q <= 1'b1;
 else
     usb_func_addr_wr_q <= 1'b0;
@@ -243,7 +284,7 @@ reg [6:0]  usb_func_addr_dev_addr_q;
 always @ (posedge clk_i or posedge rst_i)
 if (rst_i)
     usb_func_addr_dev_addr_q <= 7'd`USB_FUNC_ADDR_DEV_ADDR_DEFAULT;
-else if (write_en_w && (cfg_awaddr_i[7:0] == `USB_FUNC_ADDR))
+else if (write_en_w && (wr_addr_w[7:0] == `USB_FUNC_ADDR))
     usb_func_addr_dev_addr_q <= cfg_wdata_i[`USB_FUNC_ADDR_DEV_ADDR_R];
 
 wire [6:0]  usb_func_addr_dev_addr_out_w = usb_func_addr_dev_addr_q;
@@ -257,7 +298,7 @@ reg usb_ep0_cfg_wr_q;
 always @ (posedge clk_i or posedge rst_i)
 if (rst_i)
     usb_ep0_cfg_wr_q <= 1'b0;
-else if (write_en_w && (cfg_awaddr_i[7:0] == `USB_EP0_CFG))
+else if (write_en_w && (wr_addr_w[7:0] == `USB_EP0_CFG))
     usb_ep0_cfg_wr_q <= 1'b1;
 else
     usb_ep0_cfg_wr_q <= 1'b0;
@@ -268,7 +309,7 @@ reg        usb_ep0_cfg_int_rx_q;
 always @ (posedge clk_i or posedge rst_i)
 if (rst_i)
     usb_ep0_cfg_int_rx_q <= 1'd`USB_EP0_CFG_INT_RX_DEFAULT;
-else if (write_en_w && (cfg_awaddr_i[7:0] == `USB_EP0_CFG))
+else if (write_en_w && (wr_addr_w[7:0] == `USB_EP0_CFG))
     usb_ep0_cfg_int_rx_q <= cfg_wdata_i[`USB_EP0_CFG_INT_RX_R];
 
 wire        usb_ep0_cfg_int_rx_out_w = usb_ep0_cfg_int_rx_q;
@@ -280,7 +321,7 @@ reg        usb_ep0_cfg_int_tx_q;
 always @ (posedge clk_i or posedge rst_i)
 if (rst_i)
     usb_ep0_cfg_int_tx_q <= 1'd`USB_EP0_CFG_INT_TX_DEFAULT;
-else if (write_en_w && (cfg_awaddr_i[7:0] == `USB_EP0_CFG))
+else if (write_en_w && (wr_addr_w[7:0] == `USB_EP0_CFG))
     usb_ep0_cfg_int_tx_q <= cfg_wdata_i[`USB_EP0_CFG_INT_TX_R];
 
 wire        usb_ep0_cfg_int_tx_out_w = usb_ep0_cfg_int_tx_q;
@@ -294,7 +335,7 @@ wire usb_ep0_cfg_stall_ep_ack_in_w;
 always @ (posedge clk_i or posedge rst_i)
 if (rst_i)
     usb_ep0_cfg_stall_ep_q <= 1'b0;
-else if (write_en_w && (cfg_awaddr_i[7:0] == `USB_EP0_CFG))
+else if (write_en_w && (wr_addr_w[7:0] == `USB_EP0_CFG))
     usb_ep0_cfg_stall_ep_q <= cfg_wdata_i[`USB_EP0_CFG_STALL_EP_R];
 else if (usb_ep0_cfg_stall_ep_ack_in_w)
     usb_ep0_cfg_stall_ep_q <= 1'b0;
@@ -308,7 +349,7 @@ reg        usb_ep0_cfg_iso_q;
 always @ (posedge clk_i or posedge rst_i)
 if (rst_i)
     usb_ep0_cfg_iso_q <= 1'd`USB_EP0_CFG_ISO_DEFAULT;
-else if (write_en_w && (cfg_awaddr_i[7:0] == `USB_EP0_CFG))
+else if (write_en_w && (wr_addr_w[7:0] == `USB_EP0_CFG))
     usb_ep0_cfg_iso_q <= cfg_wdata_i[`USB_EP0_CFG_ISO_R];
 
 wire        usb_ep0_cfg_iso_out_w = usb_ep0_cfg_iso_q;
@@ -322,7 +363,7 @@ reg usb_ep0_tx_ctrl_wr_q;
 always @ (posedge clk_i or posedge rst_i)
 if (rst_i)
     usb_ep0_tx_ctrl_wr_q <= 1'b0;
-else if (write_en_w && (cfg_awaddr_i[7:0] == `USB_EP0_TX_CTRL))
+else if (write_en_w && (wr_addr_w[7:0] == `USB_EP0_TX_CTRL))
     usb_ep0_tx_ctrl_wr_q <= 1'b1;
 else
     usb_ep0_tx_ctrl_wr_q <= 1'b0;
@@ -333,7 +374,7 @@ reg        usb_ep0_tx_ctrl_tx_flush_q;
 always @ (posedge clk_i or posedge rst_i)
 if (rst_i)
     usb_ep0_tx_ctrl_tx_flush_q <= 1'd`USB_EP0_TX_CTRL_TX_FLUSH_DEFAULT;
-else if (write_en_w && (cfg_awaddr_i[7:0] == `USB_EP0_TX_CTRL))
+else if (write_en_w && (wr_addr_w[7:0] == `USB_EP0_TX_CTRL))
     usb_ep0_tx_ctrl_tx_flush_q <= cfg_wdata_i[`USB_EP0_TX_CTRL_TX_FLUSH_R];
 else
     usb_ep0_tx_ctrl_tx_flush_q <= 1'd`USB_EP0_TX_CTRL_TX_FLUSH_DEFAULT;
@@ -347,7 +388,7 @@ reg        usb_ep0_tx_ctrl_tx_start_q;
 always @ (posedge clk_i or posedge rst_i)
 if (rst_i)
     usb_ep0_tx_ctrl_tx_start_q <= 1'd`USB_EP0_TX_CTRL_TX_START_DEFAULT;
-else if (write_en_w && (cfg_awaddr_i[7:0] == `USB_EP0_TX_CTRL))
+else if (write_en_w && (wr_addr_w[7:0] == `USB_EP0_TX_CTRL))
     usb_ep0_tx_ctrl_tx_start_q <= cfg_wdata_i[`USB_EP0_TX_CTRL_TX_START_R];
 else
     usb_ep0_tx_ctrl_tx_start_q <= 1'd`USB_EP0_TX_CTRL_TX_START_DEFAULT;
@@ -361,7 +402,7 @@ reg [10:0]  usb_ep0_tx_ctrl_tx_len_q;
 always @ (posedge clk_i or posedge rst_i)
 if (rst_i)
     usb_ep0_tx_ctrl_tx_len_q <= 11'd`USB_EP0_TX_CTRL_TX_LEN_DEFAULT;
-else if (write_en_w && (cfg_awaddr_i[7:0] == `USB_EP0_TX_CTRL))
+else if (write_en_w && (wr_addr_w[7:0] == `USB_EP0_TX_CTRL))
     usb_ep0_tx_ctrl_tx_len_q <= cfg_wdata_i[`USB_EP0_TX_CTRL_TX_LEN_R];
 
 wire [10:0]  usb_ep0_tx_ctrl_tx_len_out_w = usb_ep0_tx_ctrl_tx_len_q;
@@ -375,7 +416,7 @@ reg usb_ep0_rx_ctrl_wr_q;
 always @ (posedge clk_i or posedge rst_i)
 if (rst_i)
     usb_ep0_rx_ctrl_wr_q <= 1'b0;
-else if (write_en_w && (cfg_awaddr_i[7:0] == `USB_EP0_RX_CTRL))
+else if (write_en_w && (wr_addr_w[7:0] == `USB_EP0_RX_CTRL))
     usb_ep0_rx_ctrl_wr_q <= 1'b1;
 else
     usb_ep0_rx_ctrl_wr_q <= 1'b0;
@@ -386,7 +427,7 @@ reg        usb_ep0_rx_ctrl_rx_flush_q;
 always @ (posedge clk_i or posedge rst_i)
 if (rst_i)
     usb_ep0_rx_ctrl_rx_flush_q <= 1'd`USB_EP0_RX_CTRL_RX_FLUSH_DEFAULT;
-else if (write_en_w && (cfg_awaddr_i[7:0] == `USB_EP0_RX_CTRL))
+else if (write_en_w && (wr_addr_w[7:0] == `USB_EP0_RX_CTRL))
     usb_ep0_rx_ctrl_rx_flush_q <= cfg_wdata_i[`USB_EP0_RX_CTRL_RX_FLUSH_R];
 else
     usb_ep0_rx_ctrl_rx_flush_q <= 1'd`USB_EP0_RX_CTRL_RX_FLUSH_DEFAULT;
@@ -400,7 +441,7 @@ reg        usb_ep0_rx_ctrl_rx_accept_q;
 always @ (posedge clk_i or posedge rst_i)
 if (rst_i)
     usb_ep0_rx_ctrl_rx_accept_q <= 1'd`USB_EP0_RX_CTRL_RX_ACCEPT_DEFAULT;
-else if (write_en_w && (cfg_awaddr_i[7:0] == `USB_EP0_RX_CTRL))
+else if (write_en_w && (wr_addr_w[7:0] == `USB_EP0_RX_CTRL))
     usb_ep0_rx_ctrl_rx_accept_q <= cfg_wdata_i[`USB_EP0_RX_CTRL_RX_ACCEPT_R];
 else
     usb_ep0_rx_ctrl_rx_accept_q <= 1'd`USB_EP0_RX_CTRL_RX_ACCEPT_DEFAULT;
@@ -416,7 +457,7 @@ reg usb_ep0_sts_wr_q;
 always @ (posedge clk_i or posedge rst_i)
 if (rst_i)
     usb_ep0_sts_wr_q <= 1'b0;
-else if (write_en_w && (cfg_awaddr_i[7:0] == `USB_EP0_STS))
+else if (write_en_w && (wr_addr_w[7:0] == `USB_EP0_STS))
     usb_ep0_sts_wr_q <= 1'b1;
 else
     usb_ep0_sts_wr_q <= 1'b0;
@@ -435,7 +476,7 @@ reg usb_ep0_data_wr_q;
 always @ (posedge clk_i or posedge rst_i)
 if (rst_i)
     usb_ep0_data_wr_q <= 1'b0;
-else if (write_en_w && (cfg_awaddr_i[7:0] == `USB_EP0_DATA))
+else if (write_en_w && (wr_addr_w[7:0] == `USB_EP0_DATA))
     usb_ep0_data_wr_q <= 1'b1;
 else
     usb_ep0_data_wr_q <= 1'b0;
@@ -452,7 +493,7 @@ reg usb_ep1_cfg_wr_q;
 always @ (posedge clk_i or posedge rst_i)
 if (rst_i)
     usb_ep1_cfg_wr_q <= 1'b0;
-else if (write_en_w && (cfg_awaddr_i[7:0] == `USB_EP1_CFG))
+else if (write_en_w && (wr_addr_w[7:0] == `USB_EP1_CFG))
     usb_ep1_cfg_wr_q <= 1'b1;
 else
     usb_ep1_cfg_wr_q <= 1'b0;
@@ -463,7 +504,7 @@ reg        usb_ep1_cfg_int_rx_q;
 always @ (posedge clk_i or posedge rst_i)
 if (rst_i)
     usb_ep1_cfg_int_rx_q <= 1'd`USB_EP1_CFG_INT_RX_DEFAULT;
-else if (write_en_w && (cfg_awaddr_i[7:0] == `USB_EP1_CFG))
+else if (write_en_w && (wr_addr_w[7:0] == `USB_EP1_CFG))
     usb_ep1_cfg_int_rx_q <= cfg_wdata_i[`USB_EP1_CFG_INT_RX_R];
 
 wire        usb_ep1_cfg_int_rx_out_w = usb_ep1_cfg_int_rx_q;
@@ -475,7 +516,7 @@ reg        usb_ep1_cfg_int_tx_q;
 always @ (posedge clk_i or posedge rst_i)
 if (rst_i)
     usb_ep1_cfg_int_tx_q <= 1'd`USB_EP1_CFG_INT_TX_DEFAULT;
-else if (write_en_w && (cfg_awaddr_i[7:0] == `USB_EP1_CFG))
+else if (write_en_w && (wr_addr_w[7:0] == `USB_EP1_CFG))
     usb_ep1_cfg_int_tx_q <= cfg_wdata_i[`USB_EP1_CFG_INT_TX_R];
 
 wire        usb_ep1_cfg_int_tx_out_w = usb_ep1_cfg_int_tx_q;
@@ -489,7 +530,7 @@ wire usb_ep1_cfg_stall_ep_ack_in_w;
 always @ (posedge clk_i or posedge rst_i)
 if (rst_i)
     usb_ep1_cfg_stall_ep_q <= 1'b0;
-else if (write_en_w && (cfg_awaddr_i[7:0] == `USB_EP1_CFG))
+else if (write_en_w && (wr_addr_w[7:0] == `USB_EP1_CFG))
     usb_ep1_cfg_stall_ep_q <= cfg_wdata_i[`USB_EP1_CFG_STALL_EP_R];
 else if (usb_ep1_cfg_stall_ep_ack_in_w)
     usb_ep1_cfg_stall_ep_q <= 1'b0;
@@ -503,7 +544,7 @@ reg        usb_ep1_cfg_iso_q;
 always @ (posedge clk_i or posedge rst_i)
 if (rst_i)
     usb_ep1_cfg_iso_q <= 1'd`USB_EP1_CFG_ISO_DEFAULT;
-else if (write_en_w && (cfg_awaddr_i[7:0] == `USB_EP1_CFG))
+else if (write_en_w && (wr_addr_w[7:0] == `USB_EP1_CFG))
     usb_ep1_cfg_iso_q <= cfg_wdata_i[`USB_EP1_CFG_ISO_R];
 
 wire        usb_ep1_cfg_iso_out_w = usb_ep1_cfg_iso_q;
@@ -517,7 +558,7 @@ reg usb_ep1_tx_ctrl_wr_q;
 always @ (posedge clk_i or posedge rst_i)
 if (rst_i)
     usb_ep1_tx_ctrl_wr_q <= 1'b0;
-else if (write_en_w && (cfg_awaddr_i[7:0] == `USB_EP1_TX_CTRL))
+else if (write_en_w && (wr_addr_w[7:0] == `USB_EP1_TX_CTRL))
     usb_ep1_tx_ctrl_wr_q <= 1'b1;
 else
     usb_ep1_tx_ctrl_wr_q <= 1'b0;
@@ -528,7 +569,7 @@ reg        usb_ep1_tx_ctrl_tx_flush_q;
 always @ (posedge clk_i or posedge rst_i)
 if (rst_i)
     usb_ep1_tx_ctrl_tx_flush_q <= 1'd`USB_EP1_TX_CTRL_TX_FLUSH_DEFAULT;
-else if (write_en_w && (cfg_awaddr_i[7:0] == `USB_EP1_TX_CTRL))
+else if (write_en_w && (wr_addr_w[7:0] == `USB_EP1_TX_CTRL))
     usb_ep1_tx_ctrl_tx_flush_q <= cfg_wdata_i[`USB_EP1_TX_CTRL_TX_FLUSH_R];
 else
     usb_ep1_tx_ctrl_tx_flush_q <= 1'd`USB_EP1_TX_CTRL_TX_FLUSH_DEFAULT;
@@ -542,7 +583,7 @@ reg        usb_ep1_tx_ctrl_tx_start_q;
 always @ (posedge clk_i or posedge rst_i)
 if (rst_i)
     usb_ep1_tx_ctrl_tx_start_q <= 1'd`USB_EP1_TX_CTRL_TX_START_DEFAULT;
-else if (write_en_w && (cfg_awaddr_i[7:0] == `USB_EP1_TX_CTRL))
+else if (write_en_w && (wr_addr_w[7:0] == `USB_EP1_TX_CTRL))
     usb_ep1_tx_ctrl_tx_start_q <= cfg_wdata_i[`USB_EP1_TX_CTRL_TX_START_R];
 else
     usb_ep1_tx_ctrl_tx_start_q <= 1'd`USB_EP1_TX_CTRL_TX_START_DEFAULT;
@@ -556,7 +597,7 @@ reg [10:0]  usb_ep1_tx_ctrl_tx_len_q;
 always @ (posedge clk_i or posedge rst_i)
 if (rst_i)
     usb_ep1_tx_ctrl_tx_len_q <= 11'd`USB_EP1_TX_CTRL_TX_LEN_DEFAULT;
-else if (write_en_w && (cfg_awaddr_i[7:0] == `USB_EP1_TX_CTRL))
+else if (write_en_w && (wr_addr_w[7:0] == `USB_EP1_TX_CTRL))
     usb_ep1_tx_ctrl_tx_len_q <= cfg_wdata_i[`USB_EP1_TX_CTRL_TX_LEN_R];
 
 wire [10:0]  usb_ep1_tx_ctrl_tx_len_out_w = usb_ep1_tx_ctrl_tx_len_q;
@@ -570,7 +611,7 @@ reg usb_ep1_rx_ctrl_wr_q;
 always @ (posedge clk_i or posedge rst_i)
 if (rst_i)
     usb_ep1_rx_ctrl_wr_q <= 1'b0;
-else if (write_en_w && (cfg_awaddr_i[7:0] == `USB_EP1_RX_CTRL))
+else if (write_en_w && (wr_addr_w[7:0] == `USB_EP1_RX_CTRL))
     usb_ep1_rx_ctrl_wr_q <= 1'b1;
 else
     usb_ep1_rx_ctrl_wr_q <= 1'b0;
@@ -581,7 +622,7 @@ reg        usb_ep1_rx_ctrl_rx_flush_q;
 always @ (posedge clk_i or posedge rst_i)
 if (rst_i)
     usb_ep1_rx_ctrl_rx_flush_q <= 1'd`USB_EP1_RX_CTRL_RX_FLUSH_DEFAULT;
-else if (write_en_w && (cfg_awaddr_i[7:0] == `USB_EP1_RX_CTRL))
+else if (write_en_w && (wr_addr_w[7:0] == `USB_EP1_RX_CTRL))
     usb_ep1_rx_ctrl_rx_flush_q <= cfg_wdata_i[`USB_EP1_RX_CTRL_RX_FLUSH_R];
 else
     usb_ep1_rx_ctrl_rx_flush_q <= 1'd`USB_EP1_RX_CTRL_RX_FLUSH_DEFAULT;
@@ -595,7 +636,7 @@ reg        usb_ep1_rx_ctrl_rx_accept_q;
 always @ (posedge clk_i or posedge rst_i)
 if (rst_i)
     usb_ep1_rx_ctrl_rx_accept_q <= 1'd`USB_EP1_RX_CTRL_RX_ACCEPT_DEFAULT;
-else if (write_en_w && (cfg_awaddr_i[7:0] == `USB_EP1_RX_CTRL))
+else if (write_en_w && (wr_addr_w[7:0] == `USB_EP1_RX_CTRL))
     usb_ep1_rx_ctrl_rx_accept_q <= cfg_wdata_i[`USB_EP1_RX_CTRL_RX_ACCEPT_R];
 else
     usb_ep1_rx_ctrl_rx_accept_q <= 1'd`USB_EP1_RX_CTRL_RX_ACCEPT_DEFAULT;
@@ -611,7 +652,7 @@ reg usb_ep1_sts_wr_q;
 always @ (posedge clk_i or posedge rst_i)
 if (rst_i)
     usb_ep1_sts_wr_q <= 1'b0;
-else if (write_en_w && (cfg_awaddr_i[7:0] == `USB_EP1_STS))
+else if (write_en_w && (wr_addr_w[7:0] == `USB_EP1_STS))
     usb_ep1_sts_wr_q <= 1'b1;
 else
     usb_ep1_sts_wr_q <= 1'b0;
@@ -630,7 +671,7 @@ reg usb_ep1_data_wr_q;
 always @ (posedge clk_i or posedge rst_i)
 if (rst_i)
     usb_ep1_data_wr_q <= 1'b0;
-else if (write_en_w && (cfg_awaddr_i[7:0] == `USB_EP1_DATA))
+else if (write_en_w && (wr_addr_w[7:0] == `USB_EP1_DATA))
     usb_ep1_data_wr_q <= 1'b1;
 else
     usb_ep1_data_wr_q <= 1'b0;
@@ -647,7 +688,7 @@ reg usb_ep2_cfg_wr_q;
 always @ (posedge clk_i or posedge rst_i)
 if (rst_i)
     usb_ep2_cfg_wr_q <= 1'b0;
-else if (write_en_w && (cfg_awaddr_i[7:0] == `USB_EP2_CFG))
+else if (write_en_w && (wr_addr_w[7:0] == `USB_EP2_CFG))
     usb_ep2_cfg_wr_q <= 1'b1;
 else
     usb_ep2_cfg_wr_q <= 1'b0;
@@ -658,7 +699,7 @@ reg        usb_ep2_cfg_int_rx_q;
 always @ (posedge clk_i or posedge rst_i)
 if (rst_i)
     usb_ep2_cfg_int_rx_q <= 1'd`USB_EP2_CFG_INT_RX_DEFAULT;
-else if (write_en_w && (cfg_awaddr_i[7:0] == `USB_EP2_CFG))
+else if (write_en_w && (wr_addr_w[7:0] == `USB_EP2_CFG))
     usb_ep2_cfg_int_rx_q <= cfg_wdata_i[`USB_EP2_CFG_INT_RX_R];
 
 wire        usb_ep2_cfg_int_rx_out_w = usb_ep2_cfg_int_rx_q;
@@ -670,7 +711,7 @@ reg        usb_ep2_cfg_int_tx_q;
 always @ (posedge clk_i or posedge rst_i)
 if (rst_i)
     usb_ep2_cfg_int_tx_q <= 1'd`USB_EP2_CFG_INT_TX_DEFAULT;
-else if (write_en_w && (cfg_awaddr_i[7:0] == `USB_EP2_CFG))
+else if (write_en_w && (wr_addr_w[7:0] == `USB_EP2_CFG))
     usb_ep2_cfg_int_tx_q <= cfg_wdata_i[`USB_EP2_CFG_INT_TX_R];
 
 wire        usb_ep2_cfg_int_tx_out_w = usb_ep2_cfg_int_tx_q;
@@ -684,7 +725,7 @@ wire usb_ep2_cfg_stall_ep_ack_in_w;
 always @ (posedge clk_i or posedge rst_i)
 if (rst_i)
     usb_ep2_cfg_stall_ep_q <= 1'b0;
-else if (write_en_w && (cfg_awaddr_i[7:0] == `USB_EP2_CFG))
+else if (write_en_w && (wr_addr_w[7:0] == `USB_EP2_CFG))
     usb_ep2_cfg_stall_ep_q <= cfg_wdata_i[`USB_EP2_CFG_STALL_EP_R];
 else if (usb_ep2_cfg_stall_ep_ack_in_w)
     usb_ep2_cfg_stall_ep_q <= 1'b0;
@@ -698,7 +739,7 @@ reg        usb_ep2_cfg_iso_q;
 always @ (posedge clk_i or posedge rst_i)
 if (rst_i)
     usb_ep2_cfg_iso_q <= 1'd`USB_EP2_CFG_ISO_DEFAULT;
-else if (write_en_w && (cfg_awaddr_i[7:0] == `USB_EP2_CFG))
+else if (write_en_w && (wr_addr_w[7:0] == `USB_EP2_CFG))
     usb_ep2_cfg_iso_q <= cfg_wdata_i[`USB_EP2_CFG_ISO_R];
 
 wire        usb_ep2_cfg_iso_out_w = usb_ep2_cfg_iso_q;
@@ -712,7 +753,7 @@ reg usb_ep2_tx_ctrl_wr_q;
 always @ (posedge clk_i or posedge rst_i)
 if (rst_i)
     usb_ep2_tx_ctrl_wr_q <= 1'b0;
-else if (write_en_w && (cfg_awaddr_i[7:0] == `USB_EP2_TX_CTRL))
+else if (write_en_w && (wr_addr_w[7:0] == `USB_EP2_TX_CTRL))
     usb_ep2_tx_ctrl_wr_q <= 1'b1;
 else
     usb_ep2_tx_ctrl_wr_q <= 1'b0;
@@ -723,7 +764,7 @@ reg        usb_ep2_tx_ctrl_tx_flush_q;
 always @ (posedge clk_i or posedge rst_i)
 if (rst_i)
     usb_ep2_tx_ctrl_tx_flush_q <= 1'd`USB_EP2_TX_CTRL_TX_FLUSH_DEFAULT;
-else if (write_en_w && (cfg_awaddr_i[7:0] == `USB_EP2_TX_CTRL))
+else if (write_en_w && (wr_addr_w[7:0] == `USB_EP2_TX_CTRL))
     usb_ep2_tx_ctrl_tx_flush_q <= cfg_wdata_i[`USB_EP2_TX_CTRL_TX_FLUSH_R];
 else
     usb_ep2_tx_ctrl_tx_flush_q <= 1'd`USB_EP2_TX_CTRL_TX_FLUSH_DEFAULT;
@@ -737,7 +778,7 @@ reg        usb_ep2_tx_ctrl_tx_start_q;
 always @ (posedge clk_i or posedge rst_i)
 if (rst_i)
     usb_ep2_tx_ctrl_tx_start_q <= 1'd`USB_EP2_TX_CTRL_TX_START_DEFAULT;
-else if (write_en_w && (cfg_awaddr_i[7:0] == `USB_EP2_TX_CTRL))
+else if (write_en_w && (wr_addr_w[7:0] == `USB_EP2_TX_CTRL))
     usb_ep2_tx_ctrl_tx_start_q <= cfg_wdata_i[`USB_EP2_TX_CTRL_TX_START_R];
 else
     usb_ep2_tx_ctrl_tx_start_q <= 1'd`USB_EP2_TX_CTRL_TX_START_DEFAULT;
@@ -751,7 +792,7 @@ reg [10:0]  usb_ep2_tx_ctrl_tx_len_q;
 always @ (posedge clk_i or posedge rst_i)
 if (rst_i)
     usb_ep2_tx_ctrl_tx_len_q <= 11'd`USB_EP2_TX_CTRL_TX_LEN_DEFAULT;
-else if (write_en_w && (cfg_awaddr_i[7:0] == `USB_EP2_TX_CTRL))
+else if (write_en_w && (wr_addr_w[7:0] == `USB_EP2_TX_CTRL))
     usb_ep2_tx_ctrl_tx_len_q <= cfg_wdata_i[`USB_EP2_TX_CTRL_TX_LEN_R];
 
 wire [10:0]  usb_ep2_tx_ctrl_tx_len_out_w = usb_ep2_tx_ctrl_tx_len_q;
@@ -765,7 +806,7 @@ reg usb_ep2_rx_ctrl_wr_q;
 always @ (posedge clk_i or posedge rst_i)
 if (rst_i)
     usb_ep2_rx_ctrl_wr_q <= 1'b0;
-else if (write_en_w && (cfg_awaddr_i[7:0] == `USB_EP2_RX_CTRL))
+else if (write_en_w && (wr_addr_w[7:0] == `USB_EP2_RX_CTRL))
     usb_ep2_rx_ctrl_wr_q <= 1'b1;
 else
     usb_ep2_rx_ctrl_wr_q <= 1'b0;
@@ -776,7 +817,7 @@ reg        usb_ep2_rx_ctrl_rx_flush_q;
 always @ (posedge clk_i or posedge rst_i)
 if (rst_i)
     usb_ep2_rx_ctrl_rx_flush_q <= 1'd`USB_EP2_RX_CTRL_RX_FLUSH_DEFAULT;
-else if (write_en_w && (cfg_awaddr_i[7:0] == `USB_EP2_RX_CTRL))
+else if (write_en_w && (wr_addr_w[7:0] == `USB_EP2_RX_CTRL))
     usb_ep2_rx_ctrl_rx_flush_q <= cfg_wdata_i[`USB_EP2_RX_CTRL_RX_FLUSH_R];
 else
     usb_ep2_rx_ctrl_rx_flush_q <= 1'd`USB_EP2_RX_CTRL_RX_FLUSH_DEFAULT;
@@ -790,7 +831,7 @@ reg        usb_ep2_rx_ctrl_rx_accept_q;
 always @ (posedge clk_i or posedge rst_i)
 if (rst_i)
     usb_ep2_rx_ctrl_rx_accept_q <= 1'd`USB_EP2_RX_CTRL_RX_ACCEPT_DEFAULT;
-else if (write_en_w && (cfg_awaddr_i[7:0] == `USB_EP2_RX_CTRL))
+else if (write_en_w && (wr_addr_w[7:0] == `USB_EP2_RX_CTRL))
     usb_ep2_rx_ctrl_rx_accept_q <= cfg_wdata_i[`USB_EP2_RX_CTRL_RX_ACCEPT_R];
 else
     usb_ep2_rx_ctrl_rx_accept_q <= 1'd`USB_EP2_RX_CTRL_RX_ACCEPT_DEFAULT;
@@ -806,7 +847,7 @@ reg usb_ep2_sts_wr_q;
 always @ (posedge clk_i or posedge rst_i)
 if (rst_i)
     usb_ep2_sts_wr_q <= 1'b0;
-else if (write_en_w && (cfg_awaddr_i[7:0] == `USB_EP2_STS))
+else if (write_en_w && (wr_addr_w[7:0] == `USB_EP2_STS))
     usb_ep2_sts_wr_q <= 1'b1;
 else
     usb_ep2_sts_wr_q <= 1'b0;
@@ -825,7 +866,7 @@ reg usb_ep2_data_wr_q;
 always @ (posedge clk_i or posedge rst_i)
 if (rst_i)
     usb_ep2_data_wr_q <= 1'b0;
-else if (write_en_w && (cfg_awaddr_i[7:0] == `USB_EP2_DATA))
+else if (write_en_w && (wr_addr_w[7:0] == `USB_EP2_DATA))
     usb_ep2_data_wr_q <= 1'b1;
 else
     usb_ep2_data_wr_q <= 1'b0;
@@ -842,7 +883,7 @@ reg usb_ep3_cfg_wr_q;
 always @ (posedge clk_i or posedge rst_i)
 if (rst_i)
     usb_ep3_cfg_wr_q <= 1'b0;
-else if (write_en_w && (cfg_awaddr_i[7:0] == `USB_EP3_CFG))
+else if (write_en_w && (wr_addr_w[7:0] == `USB_EP3_CFG))
     usb_ep3_cfg_wr_q <= 1'b1;
 else
     usb_ep3_cfg_wr_q <= 1'b0;
@@ -853,7 +894,7 @@ reg        usb_ep3_cfg_int_rx_q;
 always @ (posedge clk_i or posedge rst_i)
 if (rst_i)
     usb_ep3_cfg_int_rx_q <= 1'd`USB_EP3_CFG_INT_RX_DEFAULT;
-else if (write_en_w && (cfg_awaddr_i[7:0] == `USB_EP3_CFG))
+else if (write_en_w && (wr_addr_w[7:0] == `USB_EP3_CFG))
     usb_ep3_cfg_int_rx_q <= cfg_wdata_i[`USB_EP3_CFG_INT_RX_R];
 
 wire        usb_ep3_cfg_int_rx_out_w = usb_ep3_cfg_int_rx_q;
@@ -865,7 +906,7 @@ reg        usb_ep3_cfg_int_tx_q;
 always @ (posedge clk_i or posedge rst_i)
 if (rst_i)
     usb_ep3_cfg_int_tx_q <= 1'd`USB_EP3_CFG_INT_TX_DEFAULT;
-else if (write_en_w && (cfg_awaddr_i[7:0] == `USB_EP3_CFG))
+else if (write_en_w && (wr_addr_w[7:0] == `USB_EP3_CFG))
     usb_ep3_cfg_int_tx_q <= cfg_wdata_i[`USB_EP3_CFG_INT_TX_R];
 
 wire        usb_ep3_cfg_int_tx_out_w = usb_ep3_cfg_int_tx_q;
@@ -879,7 +920,7 @@ wire usb_ep3_cfg_stall_ep_ack_in_w;
 always @ (posedge clk_i or posedge rst_i)
 if (rst_i)
     usb_ep3_cfg_stall_ep_q <= 1'b0;
-else if (write_en_w && (cfg_awaddr_i[7:0] == `USB_EP3_CFG))
+else if (write_en_w && (wr_addr_w[7:0] == `USB_EP3_CFG))
     usb_ep3_cfg_stall_ep_q <= cfg_wdata_i[`USB_EP3_CFG_STALL_EP_R];
 else if (usb_ep3_cfg_stall_ep_ack_in_w)
     usb_ep3_cfg_stall_ep_q <= 1'b0;
@@ -893,7 +934,7 @@ reg        usb_ep3_cfg_iso_q;
 always @ (posedge clk_i or posedge rst_i)
 if (rst_i)
     usb_ep3_cfg_iso_q <= 1'd`USB_EP3_CFG_ISO_DEFAULT;
-else if (write_en_w && (cfg_awaddr_i[7:0] == `USB_EP3_CFG))
+else if (write_en_w && (wr_addr_w[7:0] == `USB_EP3_CFG))
     usb_ep3_cfg_iso_q <= cfg_wdata_i[`USB_EP3_CFG_ISO_R];
 
 wire        usb_ep3_cfg_iso_out_w = usb_ep3_cfg_iso_q;
@@ -907,7 +948,7 @@ reg usb_ep3_tx_ctrl_wr_q;
 always @ (posedge clk_i or posedge rst_i)
 if (rst_i)
     usb_ep3_tx_ctrl_wr_q <= 1'b0;
-else if (write_en_w && (cfg_awaddr_i[7:0] == `USB_EP3_TX_CTRL))
+else if (write_en_w && (wr_addr_w[7:0] == `USB_EP3_TX_CTRL))
     usb_ep3_tx_ctrl_wr_q <= 1'b1;
 else
     usb_ep3_tx_ctrl_wr_q <= 1'b0;
@@ -918,7 +959,7 @@ reg        usb_ep3_tx_ctrl_tx_flush_q;
 always @ (posedge clk_i or posedge rst_i)
 if (rst_i)
     usb_ep3_tx_ctrl_tx_flush_q <= 1'd`USB_EP3_TX_CTRL_TX_FLUSH_DEFAULT;
-else if (write_en_w && (cfg_awaddr_i[7:0] == `USB_EP3_TX_CTRL))
+else if (write_en_w && (wr_addr_w[7:0] == `USB_EP3_TX_CTRL))
     usb_ep3_tx_ctrl_tx_flush_q <= cfg_wdata_i[`USB_EP3_TX_CTRL_TX_FLUSH_R];
 else
     usb_ep3_tx_ctrl_tx_flush_q <= 1'd`USB_EP3_TX_CTRL_TX_FLUSH_DEFAULT;
@@ -932,7 +973,7 @@ reg        usb_ep3_tx_ctrl_tx_start_q;
 always @ (posedge clk_i or posedge rst_i)
 if (rst_i)
     usb_ep3_tx_ctrl_tx_start_q <= 1'd`USB_EP3_TX_CTRL_TX_START_DEFAULT;
-else if (write_en_w && (cfg_awaddr_i[7:0] == `USB_EP3_TX_CTRL))
+else if (write_en_w && (wr_addr_w[7:0] == `USB_EP3_TX_CTRL))
     usb_ep3_tx_ctrl_tx_start_q <= cfg_wdata_i[`USB_EP3_TX_CTRL_TX_START_R];
 else
     usb_ep3_tx_ctrl_tx_start_q <= 1'd`USB_EP3_TX_CTRL_TX_START_DEFAULT;
@@ -946,7 +987,7 @@ reg [10:0]  usb_ep3_tx_ctrl_tx_len_q;
 always @ (posedge clk_i or posedge rst_i)
 if (rst_i)
     usb_ep3_tx_ctrl_tx_len_q <= 11'd`USB_EP3_TX_CTRL_TX_LEN_DEFAULT;
-else if (write_en_w && (cfg_awaddr_i[7:0] == `USB_EP3_TX_CTRL))
+else if (write_en_w && (wr_addr_w[7:0] == `USB_EP3_TX_CTRL))
     usb_ep3_tx_ctrl_tx_len_q <= cfg_wdata_i[`USB_EP3_TX_CTRL_TX_LEN_R];
 
 wire [10:0]  usb_ep3_tx_ctrl_tx_len_out_w = usb_ep3_tx_ctrl_tx_len_q;
@@ -960,7 +1001,7 @@ reg usb_ep3_rx_ctrl_wr_q;
 always @ (posedge clk_i or posedge rst_i)
 if (rst_i)
     usb_ep3_rx_ctrl_wr_q <= 1'b0;
-else if (write_en_w && (cfg_awaddr_i[7:0] == `USB_EP3_RX_CTRL))
+else if (write_en_w && (wr_addr_w[7:0] == `USB_EP3_RX_CTRL))
     usb_ep3_rx_ctrl_wr_q <= 1'b1;
 else
     usb_ep3_rx_ctrl_wr_q <= 1'b0;
@@ -971,7 +1012,7 @@ reg        usb_ep3_rx_ctrl_rx_flush_q;
 always @ (posedge clk_i or posedge rst_i)
 if (rst_i)
     usb_ep3_rx_ctrl_rx_flush_q <= 1'd`USB_EP3_RX_CTRL_RX_FLUSH_DEFAULT;
-else if (write_en_w && (cfg_awaddr_i[7:0] == `USB_EP3_RX_CTRL))
+else if (write_en_w && (wr_addr_w[7:0] == `USB_EP3_RX_CTRL))
     usb_ep3_rx_ctrl_rx_flush_q <= cfg_wdata_i[`USB_EP3_RX_CTRL_RX_FLUSH_R];
 else
     usb_ep3_rx_ctrl_rx_flush_q <= 1'd`USB_EP3_RX_CTRL_RX_FLUSH_DEFAULT;
@@ -985,7 +1026,7 @@ reg        usb_ep3_rx_ctrl_rx_accept_q;
 always @ (posedge clk_i or posedge rst_i)
 if (rst_i)
     usb_ep3_rx_ctrl_rx_accept_q <= 1'd`USB_EP3_RX_CTRL_RX_ACCEPT_DEFAULT;
-else if (write_en_w && (cfg_awaddr_i[7:0] == `USB_EP3_RX_CTRL))
+else if (write_en_w && (wr_addr_w[7:0] == `USB_EP3_RX_CTRL))
     usb_ep3_rx_ctrl_rx_accept_q <= cfg_wdata_i[`USB_EP3_RX_CTRL_RX_ACCEPT_R];
 else
     usb_ep3_rx_ctrl_rx_accept_q <= 1'd`USB_EP3_RX_CTRL_RX_ACCEPT_DEFAULT;
@@ -1001,7 +1042,7 @@ reg usb_ep3_sts_wr_q;
 always @ (posedge clk_i or posedge rst_i)
 if (rst_i)
     usb_ep3_sts_wr_q <= 1'b0;
-else if (write_en_w && (cfg_awaddr_i[7:0] == `USB_EP3_STS))
+else if (write_en_w && (wr_addr_w[7:0] == `USB_EP3_STS))
     usb_ep3_sts_wr_q <= 1'b1;
 else
     usb_ep3_sts_wr_q <= 1'b0;
@@ -1020,7 +1061,7 @@ reg usb_ep3_data_wr_q;
 always @ (posedge clk_i or posedge rst_i)
 if (rst_i)
     usb_ep3_data_wr_q <= 1'b0;
-else if (write_en_w && (cfg_awaddr_i[7:0] == `USB_EP3_DATA))
+else if (write_en_w && (wr_addr_w[7:0] == `USB_EP3_DATA))
     usb_ep3_data_wr_q <= 1'b1;
 else
     usb_ep3_data_wr_q <= 1'b0;
