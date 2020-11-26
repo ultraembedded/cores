@@ -51,31 +51,29 @@ module sdram
 // Ports
 //-----------------------------------------------------------------
 (
-    input           clk_i,
-    input           rst_i,
+    clk_i,
+    rst_i,
 
-    // Wishbone Interface
-    input           stb_i,
-    input           we_i,
-    input [3:0]     sel_i,
-    input           cyc_i,
-    input [31:0]    addr_i,
-    input [31:0]    data_i,
-    output [31:0]   data_o,
-    output          stall_o,
-    output          ack_o,
-    
-    // SDRAM Interface
-    output          sdram_clk_o,
-    output          sdram_cke_o,
-    output          sdram_cs_o,
-    output          sdram_ras_o,
-    output          sdram_cas_o,
-    output          sdram_we_o,
-    output [1:0]    sdram_dqm_o,
-    output [12:0]   sdram_addr_o,
-    output [1:0]    sdram_ba_o,
-    inout [15:0]    sdram_data_io
+    stb_i,
+    we_i,
+    sel_i,
+    cyc_i,
+    addr_i,
+    data_i,
+    data_o,
+    stall_o,
+    ack_o,
+
+    sdram_clk_o,
+    sdram_cke_o,
+    sdram_cs_o,
+    sdram_ras_o,
+    sdram_cas_o,
+    sdram_we_o,
+    sdram_dqm_o,
+    sdram_addr_o,
+    sdram_ba_o,
+    sdram_data_io
 );
 
 //-----------------------------------------------------------------
@@ -118,6 +116,32 @@ localparam CYCLE_TIME_NS     = 1000 / SDRAM_MHZ;
 localparam SDRAM_TRCD_CYCLES = (20 + (CYCLE_TIME_NS-1)) / CYCLE_TIME_NS;
 localparam SDRAM_TRP_CYCLES  = (20 + (CYCLE_TIME_NS-1)) / CYCLE_TIME_NS;
 localparam SDRAM_TRFC_CYCLES = (60 + (CYCLE_TIME_NS-1)) / CYCLE_TIME_NS;
+
+input wire clk_i;
+input wire rst_i;
+
+// Wishbone Interface
+input  wire        stb_i;
+input  wire        we_i;
+input  wire [3:0]  sel_i;
+input  wire        cyc_i;
+input  wire [31:0] addr_i;
+input  wire [31:0] data_i;
+output wire [31:0] data_o;
+output wire        stall_o;
+output wire        ack_o;
+
+// SDRAM Interface
+output wire                    sdram_clk_o;
+output wire                    sdram_cke_o;
+output wire                    sdram_cs_o;
+output wire                    sdram_ras_o;
+output wire                    sdram_cas_o;
+output wire                    sdram_we_o;
+output wire [SDRAM_DQM_W-1:0]  sdram_dqm_o;
+output wire [SDRAM_ROW_W-1:0]  sdram_addr_o;
+output wire [SDRAM_BANK_W-1:0] sdram_ba_o;
+inout  wire [SDRAM_DATA_W-1:0] sdram_data_io;
 
 //-----------------------------------------------------------------
 // Registers / Wires
