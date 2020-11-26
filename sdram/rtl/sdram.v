@@ -110,7 +110,7 @@ localparam STATE_REFRESH     = 4'd9;
 localparam AUTO_PRECHARGE    = 10;
 localparam ALL_BANKS         = 10;
 
-localparam SDRAM_DATA_W      = 16;
+localparam SDRAM_DATA_W      = (SDRAM_DQM_W * 8);
 
 localparam CYCLE_TIME_NS     = 1000 / SDRAM_MHZ;
 
